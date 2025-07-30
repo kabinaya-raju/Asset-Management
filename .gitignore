@@ -1,0 +1,45 @@
+# Visual Studio / .NET Core template
+
+## User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+## VS Code files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+## Rider files
+.idea/
+*.sln.iml
+
+## Environment files - uncomment to ignore
+# appsettings.*.json
+# !appsettings.Development.json
+
+## Other
+*.vspscc
+*.vssscc
+.vs/
+ClientApp/dist
+/node_modules
+*.swp
+
+# End of section
