@@ -1,0 +1,229 @@
+﻿@page "/employeemasters"
+
+@inject NavigationManager Navigation
+@using Management.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Forms
+@inject AppDbContext DbContext
+@inject IJSRuntime JSRuntime
+
+<button class="btn btn-primary mb-3" @onclick="AddNewEmployee">Add New Employee</button>
+
+@if (showEditForm)
+{
+            <EditForm Model="@currentEmployee" OnValidSubmit="@SaveEmployee">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-group mb-3">
+                    <label for="firstName">First Name:</label>
+                    <InputText id="firstName" @bind-Value="currentEmployee.FirstName" class="form-control" />
+                    <ValidationMessage For="@(() => currentEmployee.FirstName)" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="lastName">Last Name:</label>
+                    <InputText id="lastName" @bind-Value="currentEmployee.LastName" class="form-control" />
+                    <ValidationMessage For="@(() => currentEmployee.LastName)" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="gender">Gender:</label>
+                    <InputSelect id="gender" @bind-Value="currentEmployee.Gender" class="form-select">
+                        <option value="">-- Select Gender --</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => currentEmployee.Gender)" />
+                </div>
+
+        <div class="form-group mb-3">
+                    <label for="position">Position:</label>
+                    <InputSelect id="position" @bind-Value="currentEmployee.Position" class="form-select">
+                        <option value="">-- Select Position --</option>
+                        <option value="Manager">Manager</option>
+                        <option value="HR Manager">HR Manager</option>
+                        <option value="Project Manager">Project Manager</option>
+                        <option value="Marketing Manager">Marketing Manager</option>
+                        <option value="DevOps  Architect">DevOps  Architect</option>
+                        <option value="Solution Architect">Solution Architect</option>option>
+                        <option value="Software Architect">Software Architect</option>
+                        <option value="AI & ML Architect"> AI & ML Architect</option>
+                        <option value="UI & UX Designer">UI & UX Designer</option>option>
+                        
+                        <option value="Software Developer">Software Developer</option>option>
+                        <option value="AI & ML Developer">AI Developer</option>option>
+                        <option value="Software Tester">Software Tester</option>
+                   
+                    </InputSelect>
+                    <ValidationMessage For="@(() => currentEmployee.Position)" />
+        </div>
+
+                <button type="submit" class="btn btn-success me-2">Save</button>
+                <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+            </EditForm>
+        
+ }
+
+ 
+        @if (employees == null)
+        {
+            <p>Loading employees....</p>
+        }
+        else
+        {
+
+        <table class="table">
+            <thead>
+                <tr>
+                <th>Employee Id</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Gender</th>
+                <th>Position</th>
+                    
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var emp in employees)
+                {
+                    <tr>
+                        <td>@emp.EmployeeId</td>
+                        <td>@emp.FirstName</td>
+                        <td>@emp.LastName</td>
+                        <td>@emp.Gender</td>
+                        <td>@emp.Position</td>
+                        <td>
+                            <button class="btn btn-sm btn-info me-1" @onclick="() => EditEmployee(emp)">Edit</button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteEmployee(emp.EmployeeId, emp.FirstName)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+  }
+ 
+   
+
+
+@code {
+
+    private List<EmployeeMaster>? employees; // List to display
+    private EmployeeMaster currentEmployee = new EmployeeMaster(); // Model for the form
+    private bool showEditForm = false;
+
+    
+
+    protected override async Task OnInitializedAsync()
+    {
+        
+            await LoadEmployees();
+       
+    }
+
+   
+
+
+    public async ValueTask DisposeAsync()
+    {
+        if (DbContext is not null)
+        {
+            await DbContext.DisposeAsync();
+        }
+    }
+
+    private async Task LoadEmployees()
+    {
+        try
+        {
+            employees = await DbContext.Employees.ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading employees: {ex.Message}");
+            employees = new List<EmployeeMaster>();
+        }
+    }
+
+    private void AddNewEmployee()
+    {
+        try
+        {
+           
+            showEditForm = true;
+            StateHasChanged(); // Ensure UI refreshes
+            Console.WriteLine($"showEditForm set to: {showEditForm}");
+            Console.WriteLine("AddNewEmployee method completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in AddNewEmployee: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+    }
+
+    private void EditEmployee(EmployeeMaster emp)
+    {
+        currentEmployee = emp;
+        showEditForm = true;
+    }
+
+
+    private async Task SaveEmployee()
+    {
+
+        try
+        {
+            if (currentEmployee.EmployeeId == 0) // New employee
+            {
+                DbContext.Employees.Add(currentEmployee); // <-- Changed from _dbContext.Employees
+            }
+            else // Existing employee
+            {
+                DbContext.Employees.Update(currentEmployee); // <-- Changed from _dbContext.Employees
+            }
+
+            await DbContext.SaveChangesAsync(); // <-- Changed from _dbContext.SaveChangesAsync()
+            showEditForm = false;
+            await LoadEmployees(); // Reload data
+        }
+        catch (Exception ex)
+        {
+
+            Console.WriteLine($"Full exception during employee save: {ex}"); // Log full exception for debugging
+        }
+    }
+
+    private void CancelEdit()
+    {
+        showEditForm = false;
+    }
+
+    private async Task DeleteEmployee(int employeeId, string employeeFullName)
+    {
+        if (DbContext == null) return;
+
+        string confirmationMessage = $"Are you sure you want to delete employee '{employeeFullName}' (ID: {employeeId})?";
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", confirmationMessage);
+
+        if (confirmed)
+        {
+            try
+            {
+                var employeeToDelete = await DbContext.Employees.FindAsync(employeeId);
+                if (employeeToDelete != null)
+                {
+                    DbContext.Employees.Remove(employeeToDelete);
+                    await DbContext.SaveChangesAsync();
+                    await LoadEmployees();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting employee: {ex.Message}");
+                // Consider displaying a user-friendly error message
+            }
+        }
+    }
+}

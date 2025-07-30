@@ -1,0 +1,160 @@
+﻿@page "/suppliers"
+@using Management.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Forms
+@inject AppDbContext DbContext
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<h3>Supplier Master</h3>
+
+<button class="btn btn-primary mb-3" @onclick="AddNewSupplier">Add New Supplier</button>
+
+@if (showEditForm)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">@(currentSupplier.SupplierId == 0 ? "Add New Supplier" : "Edit Supplier")</h5>
+
+            <EditForm Model="@currentSupplier" OnValidSubmit="@SaveSupplier">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-group mb-3">
+                    <label>Supplier Name:</label>
+                    <InputText @bind-Value="currentSupplier.SupplierName" class="form-control" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label>Phone:</label>
+                    <InputText @bind-Value="currentSupplier.Phone" class="form-control" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="PurchaseDate">Purchase Date:</label>
+                    <InputDate id="PurchaseDate" @bind-Value="currentSupplier.PurchaseDate" class="form-control" />
+                    <ValidationMessage For="@(() => currentSupplier.PurchaseDate)" />
+                </div>
+
+                <button type="submit" class="btn btn-success me-2">Save</button>
+                <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (suppliers == null)
+{
+    <p>Loading suppliers...</p>
+}
+else
+{
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Supplier ID</th>
+                <th>Supplier Name</th>
+                <th>Phone</th>
+                <th>Purchase Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var supplier in suppliers)
+            {
+                <tr>
+                    <td>@supplier.SupplierId</td>
+                    <td>@supplier.SupplierName</td>
+                    <td>@supplier.Phone</td>
+                    <td>@supplier.PurchaseDate.ToString("yyyy-MM-dd")</td>
+                    <td>
+                        <button class="btn btn-sm btn-info me-1" @onclick="() => EditSupplier(supplier)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteSupplier(supplier.SupplierId, supplier.SupplierName)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<SupplierMaster> suppliers;
+    private SupplierMaster currentSupplier = new();
+    private bool showEditForm = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSuppliers();
+    }
+
+    private async Task LoadSuppliers()
+    {
+        suppliers = await DbContext.Suppliers.ToListAsync();
+    }
+
+    private void AddNewSupplier()
+    {
+        currentSupplier = new SupplierMaster
+        {
+            PurchaseDate = DateOnly.FromDateTime(DateTime.Today)
+        };
+        showEditForm = true;
+        StateHasChanged();
+    }
+
+    private void EditSupplier(SupplierMaster supplier)
+    {
+        currentSupplier = new SupplierMaster
+        {
+            SupplierId = supplier.SupplierId,
+            SupplierName = supplier.SupplierName,
+            Phone = supplier.Phone,
+            PurchaseDate = supplier.PurchaseDate
+        };
+
+        showEditForm = true;
+        StateHasChanged();
+    }
+
+    private async Task SaveSupplier()
+    {
+        if (currentSupplier.SupplierId == 0)
+        {
+            DbContext.Suppliers.Add(currentSupplier);
+        }
+        else
+        {
+            var existingEntity = await DbContext.Suppliers.FindAsync(currentSupplier.SupplierId);
+            if (existingEntity != null)
+            {
+                DbContext.Entry(existingEntity).CurrentValues.SetValues(currentSupplier);
+            }
+        }
+
+        await DbContext.SaveChangesAsync();
+        showEditForm = false;
+        await LoadSuppliers();
+    }
+
+    private void CancelEdit()
+    {
+        showEditForm = false;
+    }
+
+    private async Task DeleteSupplier(int supplierId, string supplierName)
+    {
+        string confirmationMessage = $"Are you sure you want to delete supplier '{supplierName}' (ID: {supplierId})?";
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", confirmationMessage);
+
+        if (confirmed)
+        {
+            var supplierToDelete = await DbContext.Suppliers.FindAsync(supplierId);
+            if (supplierToDelete != null)
+            {
+                DbContext.Suppliers.Remove(supplierToDelete);
+                await DbContext.SaveChangesAsync();
+                await LoadSuppliers();
+            }
+        }
+    }
+}

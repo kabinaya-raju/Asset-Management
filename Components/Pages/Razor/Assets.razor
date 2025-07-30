@@ -1,0 +1,227 @@
+﻿@page "/assetmasters"
+
+@using Management.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Forms 
+@inject NavigationManager Navigation
+@inject AppDbContext DbContext
+@inject IJSRuntime JSRuntime
+
+
+<button class="btn btn-primary mb-3" @onclick="AddNewAsset">Add New Asset</button>
+
+
+@if (showEditForm)
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="card-title">@(currentAsset.AssetId == 0 ? "Add New Asset" : $"Edit Asset: {currentAsset.AssetName}")</h5>
+        </div>
+        <div class="card-body">
+            <EditForm Model="@currentAsset" OnValidSubmit="@SaveAsset">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-group mb-3">
+                    <label for="assetName">Asset Name:</label>
+                    <InputText id="assetName" @bind-Value="currentAsset.AssetName" class="form-control" />
+                    <ValidationMessage For="@(() => currentAsset.AssetName)" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="assetType">Asset Type:</label>
+                    <InputText id="assetType" @bind-Value="currentAsset.AssetType" class="form-control" />
+                    <ValidationMessage For="@(() => currentAsset.AssetType)" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="serialNumber">Serial Number:</label>
+                    <InputText id="serialNumber" @bind-Value="currentAsset.SerialNumber" class="form-control" />
+                    <ValidationMessage For="@(() => currentAsset.SerialNumber)" />
+                </div>
+
+                <button type="submit" class="btn btn-success me-2" >Save</button>
+                <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@* Display the list of assets in a table *@
+
+@if (assets == null)
+ {
+        <p>Loading employees....</p>
+  }
+  else
+        {
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                <th>AssetId</th>
+                    <th>Asset Name</th>
+                    <th>Asset Type</th>
+                    <th>Serial Number</th>
+
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var asset in assets)
+                {
+                    <tr>
+                        <td>@asset.AssetId</td>
+                        <td>@asset.AssetName</td>
+                        <td>@asset.AssetType</td>
+                        <td>@asset.SerialNumber</td>
+                        <td>
+                            <button class="btn btn-sm btn-info me-1" @onclick="() => EditAsset(asset)">Edit</button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteAsset(asset.AssetId, asset.AssetName)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+  }  
+
+
+@code {
+ // The DbContext instance for this component
+    private List<AssetMaster>? assets; // List to hold all assets
+    private AssetMaster currentAsset = new AssetMaster(); // The asset being added/edited
+    private bool showEditForm = false; // Controls visibility of the add/edit form
+
+   
+    protected override async Task OnInitializedAsync()
+    {
+        // Only load assets and check DB connectivity, no JS interop here
+        try
+        {
+            await LoadAssets();
+        }
+        catch (Exception ex)
+        {
+            // Optionally log to server-side logs if available
+        }
+    }
+
+    private async Task LoadAssets()
+    {
+        try
+        {
+            assets = await DbContext.Assets.ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            assets = new List<AssetMaster>();
+        }
+    }
+
+    
+
+    // Implementation of IAsyncDisposable to ensure the DbContext is properly disposed
+    public async ValueTask DisposeAsync()
+    {
+        if (DbContext is not null)
+        {
+            await DbContext.DisposeAsync();
+        }
+        // No call to base.DisposeAsync() needed, as ComponentBase doesn't implement it.
+    }
+
+    // Loads all assets from the database
+    
+
+    // Initiates adding a new asset
+    private void AddNewAsset()
+    {
+        try{
+        currentAsset = new AssetMaster(); // Create a new empty AssetMaster instance
+        showEditForm = true; // Show the form
+        StateHasChanged();
+        }
+    catch (Exception ex)
+        {
+            // Optionally log to server-side logs if available
+        }
+    }
+
+    // Initiates editing an existing asset
+    private void EditAsset(AssetMaster asset)
+    {
+        // Create a *copy* of the asset to edit. This prevents changes from being
+        // tracked by the DbContext directly until SaveAsset is called, allowing
+        // for "cancel" functionality without affecting the original object immediately.
+        currentAsset = new AssetMaster
+        {
+            AssetId = asset.AssetId,
+            AssetName = asset.AssetName,
+            AssetType = asset.AssetType,
+            SerialNumber = asset.SerialNumber
+        };
+        showEditForm = true; // Show the form
+    }
+
+    // Saves the current asset (either new or edited) to the database
+    private async Task SaveAsset()
+    {
+        try
+        {
+            if (currentAsset.AssetId == 0) // New asset
+            {
+                DbContext.Assets.Add(currentAsset);
+            }
+            else // Existing asset - update using tracked entity
+            {
+                var existingAsset = await DbContext.Assets.FindAsync(currentAsset.AssetId);
+                if (existingAsset != null)
+                {
+                    DbContext.Entry(existingAsset).CurrentValues.SetValues(currentAsset);
+                }
+            }
+
+            await DbContext.SaveChangesAsync();
+            showEditForm = false;
+            currentAsset = new AssetMaster();
+            await LoadAssets();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving asset: {ex}");
+        }
+    }
+
+    // Cancels the add/edit operation and hides the form
+    private void CancelEdit()
+    {
+        showEditForm = false; // Hide the form
+        currentAsset = new AssetMaster(); // Reset the current asset
+    }
+
+    // Deletes an asset from the database
+    private async Task DeleteAsset(int assetId, string assetName)
+    {
+        if (DbContext == null) return;
+
+        // Use JavaScript confirm dialog for user confirmation
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete asset: {assetName} (ID: {assetId})?");
+
+        if (confirmed)
+        {
+            try
+            {
+                var assetToDelete = await DbContext.Assets.FindAsync(assetId);
+                if (assetToDelete != null)
+                {
+                    DbContext.Assets.Remove(assetToDelete);
+                    await DbContext.SaveChangesAsync();
+                    await LoadAssets(); // Reload the list of assets
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting asset: {ex.Message}");
+                // Consider showing an alert to the user
+            }
+        }
+    }
+}
