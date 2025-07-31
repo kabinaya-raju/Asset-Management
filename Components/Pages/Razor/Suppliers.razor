@@ -1,4 +1,5 @@
-﻿@page "/suppliers"
+﻿Suppliers.razor
+@page "/suppliers"
 @using Management.Models
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Forms
@@ -18,27 +19,70 @@
 
             <EditForm Model="@currentSupplier" OnValidSubmit="@SaveSupplier">
                 <DataAnnotationsValidator />
-                <ValidationSummary />
 
                 <div class="form-group mb-3">
                     <label>Supplier Name:</label>
                     <InputText @bind-Value="currentSupplier.SupplierName" class="form-control" />
+                    <ValidationMessage For="@(() => currentSupplier.SupplierName)" />
                 </div>
 
                 <div class="form-group mb-3">
                     <label>Phone:</label>
                     <InputText @bind-Value="currentSupplier.Phone" class="form-control" />
+                    <ValidationMessage For="@(() => currentSupplier.Phone)" />
                 </div>
 
                 <div class="form-group mb-3">
-                    <label for="PurchaseDate">Purchase Date:</label>
-                    <InputDate id="PurchaseDate" @bind-Value="currentSupplier.PurchaseDate" class="form-control" />
+                    <label>Purchase Date:</label>
+                    <InputDate @bind-Value="currentSupplier.PurchaseDate" class="form-control" />
                     <ValidationMessage For="@(() => currentSupplier.PurchaseDate)" />
                 </div>
 
                 <button type="submit" class="btn btn-success me-2">Save</button>
                 <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
             </EditForm>
+
+        </div>
+    </div>
+}
+
+@if (showDetails && selectedSupplier is not null)
+{
+    <div class="card mb-3 border-info">
+        <div class="card-header bg-info text-white">
+            <h5>Supplier Details (ID: @selectedSupplier.SupplierId)</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Supplier Name:</strong> @selectedSupplier.SupplierName</p>
+            <p><strong>Phone:</strong> @selectedSupplier.Phone</p>
+            <p><strong>Purchase Date:</strong> @selectedSupplier.PurchaseDate.ToString("yyyy-MM-dd")</p>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ClearDetails">Close</button>
+        </div>
+    </div>
+}
+
+
+@if (showConfirmDeleteModal && deleteTargetSupplier is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the following supplier?</p>
+                    <ul>
+                        <li><strong>Supplier Name:</strong> @deleteTargetSupplier.SupplierName</li>
+                        <li><strong>Phone:</strong> @deleteTargetSupplier.Phone</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                </div>
+            </div>
         </div>
     </div>
 }
@@ -69,7 +113,8 @@ else
                     <td>@supplier.PurchaseDate.ToString("yyyy-MM-dd")</td>
                     <td>
                         <button class="btn btn-sm btn-info me-1" @onclick="() => EditSupplier(supplier)">Edit</button>
-                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteSupplier(supplier.SupplierId, supplier.SupplierName)">Delete</button>
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetails(supplier)">Details</button>
+                        <button class=" btn btn-sm btn-danger me-1" @onclick="() => PromptDelete(supplier)">Delete</button>
                     </td>
                 </tr>
             }
@@ -81,6 +126,11 @@ else
     private List<SupplierMaster> suppliers;
     private SupplierMaster currentSupplier = new();
     private bool showEditForm = false;
+
+    private bool showConfirmDeleteModal = false;
+    private bool showDetails = false;
+    private SupplierMaster? selectedSupplier;
+    private SupplierMaster? deleteTargetSupplier;
 
     protected override async Task OnInitializedAsync()
     {
@@ -96,7 +146,7 @@ else
     {
         currentSupplier = new SupplierMaster
         {
-            PurchaseDate = DateOnly.FromDateTime(DateTime.Today)
+            PurchaseDate = DateTime.Today
         };
         showEditForm = true;
         StateHasChanged();
@@ -141,20 +191,41 @@ else
         showEditForm = false;
     }
 
-    private async Task DeleteSupplier(int supplierId, string supplierName)
-    {
-        string confirmationMessage = $"Are you sure you want to delete supplier '{supplierName}' (ID: {supplierId})?";
-        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", confirmationMessage);
 
-        if (confirmed)
-        {
-            var supplierToDelete = await DbContext.Suppliers.FindAsync(supplierId);
-            if (supplierToDelete != null)
-            {
-                DbContext.Suppliers.Remove(supplierToDelete);
-                await DbContext.SaveChangesAsync();
-                await LoadSuppliers();
-            }
-        }
+    private void PromptDelete(SupplierMaster supplier)
+    {
+        deleteTargetSupplier = supplier;
+        showConfirmDeleteModal = true;
     }
+
+    private void CloseDeleteModal()
+    {
+        deleteTargetSupplier = null;
+        showConfirmDeleteModal = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deleteTargetSupplier != null)
+        {
+            DbContext.Suppliers.Remove(deleteTargetSupplier);
+            await DbContext.SaveChangesAsync();
+            await LoadSuppliers();
+        }
+
+        CloseDeleteModal();
+    }
+
+    private void ShowDetails(SupplierMaster supplier)
+    {
+        selectedSupplier = supplier;
+        showDetails = true;
+    }
+
+    private void ClearDetails()
+    {
+        selectedSupplier = null;
+        showDetails = false;
+    }
+
 }

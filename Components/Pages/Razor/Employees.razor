@@ -11,60 +11,100 @@
 
 @if (showEditForm)
 {
-            <EditForm Model="@currentEmployee" OnValidSubmit="@SaveEmployee">
-                <DataAnnotationsValidator />
-                <ValidationSummary />
-
-                <div class="form-group mb-3">
-                    <label for="firstName">First Name:</label>
-                    <InputText id="firstName" @bind-Value="currentEmployee.FirstName" class="form-control" />
-                    <ValidationMessage For="@(() => currentEmployee.FirstName)" />
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="lastName">Last Name:</label>
-                    <InputText id="lastName" @bind-Value="currentEmployee.LastName" class="form-control" />
-                    <ValidationMessage For="@(() => currentEmployee.LastName)" />
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="gender">Gender:</label>
-                    <InputSelect id="gender" @bind-Value="currentEmployee.Gender" class="form-select">
-                        <option value="">-- Select Gender --</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                    </InputSelect>
-                    <ValidationMessage For="@(() => currentEmployee.Gender)" />
-                </div>
+    <EditForm Model="@currentEmployee" OnValidSubmit="@SaveEmployee">
+        <DataAnnotationsValidator />
 
         <div class="form-group mb-3">
-                    <label for="position">Position:</label>
-                    <InputSelect id="position" @bind-Value="currentEmployee.Position" class="form-select">
-                        <option value="">-- Select Position --</option>
-                        <option value="Manager">Manager</option>
-                        <option value="HR Manager">HR Manager</option>
-                        <option value="Project Manager">Project Manager</option>
-                        <option value="Marketing Manager">Marketing Manager</option>
-                        <option value="DevOps  Architect">DevOps  Architect</option>
-                        <option value="Solution Architect">Solution Architect</option>option>
-                        <option value="Software Architect">Software Architect</option>
-                        <option value="AI & ML Architect"> AI & ML Architect</option>
-                        <option value="UI & UX Designer">UI & UX Designer</option>option>
-                        
-                        <option value="Software Developer">Software Developer</option>option>
-                        <option value="AI & ML Developer">AI Developer</option>option>
-                        <option value="Software Tester">Software Tester</option>
-                   
-                    </InputSelect>
-                    <ValidationMessage For="@(() => currentEmployee.Position)" />
+            <label for="firstName">First Name:</label>
+            <InputText id="firstName" @bind-Value="currentEmployee.FirstName" class="form-control" />
+            <ValidationMessage For="@(() => currentEmployee.FirstName)" />
         </div>
 
-                <button type="submit" class="btn btn-success me-2">Save</button>
-                <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
-            </EditForm>
+        <div class="form-group mb-3">
+            <label for="lastName">Last Name:</label>
+            <InputText id="lastName" @bind-Value="currentEmployee.LastName" class="form-control" />
+            <ValidationMessage For="@(() => currentEmployee.LastName)" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="gender">Gender:</label>
+            <InputSelect id="gender" @bind-Value="currentEmployee.Gender" class="form-select">
+                <option value="">-- Select Gender --</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+            </InputSelect>
+            <ValidationMessage For="@(() => currentEmployee.Gender)" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="position">Position:</label>
+            <InputSelect id="position" @bind-Value="currentEmployee.Position" class="form-select">
+                <option value="">-- Select Position --</option>
+                <option value="Manager">Manager</option>
+                <option value="HR Manager">HR Manager</option>
+                <option value="Project Manager">Project Manager</option>
+                <option value="Marketing Manager">Marketing Manager</option>
+                <option value="DevOps  Architect">DevOps Architect</option>
+                <option value="Solution Architect">Solution Architect</option>
+                <option value="Software Architect">Software Architect</option>
+                <option value="AI & ML Architect">AI & ML Architect</option>
+                <option value="UI & UX Designer">UI & UX Designer</option>
+                <option value="Software Developer">Software Developer</option>
+                <option value="AI & ML Developer">AI & ML Developer</option>
+                <option value="Software Tester">Software Tester</option>
+            </InputSelect>
+            <ValidationMessage For="@(() => currentEmployee.Position)" />
+        </div>
+
+        <button type="submit" class="btn btn-success me-2">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    </EditForm>
+
         
  }
+
+@if (showDetails && selectedEmployee is not null)
+{
+    <div class="card mb-3 border-info">
+        <div class="card-header bg-info text-white">
+            <h5>Employee Details (ID: @selectedEmployee.EmployeeId)</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>First Name:</strong> @selectedEmployee.FirstName</p>
+            <p><strong>Last Name:</strong> @selectedEmployee.LastName</p>
+            <p><strong>Gender:</strong> @selectedEmployee.Gender</p>
+            <p><strong>Position:</strong> @selectedEmployee.Position</p>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ClearDetails">Close</button>
+        </div>
+    </div>
+}
+
+@if (showConfirmDeleteModal && deleteTargetEmployee is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this employee?</p>
+                    <ul>
+                        <li><strong>Name:</strong> @deleteTargetEmployee.FirstName @deleteTargetEmployee.LastName</li>
+                        <li><strong>Gender:</strong> @deleteTargetEmployee.Gender</li>
+                        <li><strong>Position:</strong> @deleteTargetEmployee.Position</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
  
         @if (employees == null)
@@ -77,11 +117,12 @@
         <table class="table">
             <thead>
                 <tr>
-                <th>Employee Id</th>
-                <th>First Name</th>
-                <th>Last Name</th>
-                <th>Gender</th>
-                <th>Position</th>
+                <th>EMPLOYEE ID</th>
+                <th>FIRST NAME</th>
+                <th>LAST NAME</th>
+                <th>GENDER</th>
+                <th>POSITION</th>
+                <th>ACTION</th>
                     
                 </tr>
             </thead>
@@ -96,8 +137,9 @@
                         <td>@emp.Position</td>
                         <td>
                             <button class="btn btn-sm btn-info me-1" @onclick="() => EditEmployee(emp)">Edit</button>
-                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteEmployee(emp.EmployeeId, emp.FirstName)">Delete</button>
-                        </td>
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetails(emp)">Details</button>
+                        <button class="btn btn-sm btn-danger me-1" @onclick="() => PromptDelete(emp)">Delete</button>
+                    </td>
                     </tr>
                 }
             </tbody>
@@ -113,7 +155,11 @@
     private EmployeeMaster currentEmployee = new EmployeeMaster(); // Model for the form
     private bool showEditForm = false;
 
-    
+    private bool showDetails = false;
+    private bool showConfirmDeleteModal = false;
+
+    private EmployeeMaster? selectedEmployee;
+    private EmployeeMaster? deleteTargetEmployee;
 
     protected override async Task OnInitializedAsync()
     {
@@ -200,30 +246,38 @@
         showEditForm = false;
     }
 
-    private async Task DeleteEmployee(int employeeId, string employeeFullName)
+    private void ShowDetails(EmployeeMaster employee)
     {
-        if (DbContext == null) return;
+        selectedEmployee = employee;
+        showDetails = true;
+    }
 
-        string confirmationMessage = $"Are you sure you want to delete employee '{employeeFullName}' (ID: {employeeId})?";
-        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", confirmationMessage);
+    private void ClearDetails()
+    {
+        selectedEmployee = null;
+        showDetails = false;
+    }
 
-        if (confirmed)
+    private void PromptDelete(EmployeeMaster employee)
+    {
+        deleteTargetEmployee = employee;
+        showConfirmDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deleteTargetEmployee = null;
+        showConfirmDeleteModal = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deleteTargetEmployee != null)
         {
-            try
-            {
-                var employeeToDelete = await DbContext.Employees.FindAsync(employeeId);
-                if (employeeToDelete != null)
-                {
-                    DbContext.Employees.Remove(employeeToDelete);
-                    await DbContext.SaveChangesAsync();
-                    await LoadEmployees();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error deleting employee: {ex.Message}");
-                // Consider displaying a user-friendly error message
-            }
+            DbContext.Employees.Remove(deleteTargetEmployee);
+            await DbContext.SaveChangesAsync();
+            await LoadEmployees();
         }
+        CloseDeleteModal();
     }
 }

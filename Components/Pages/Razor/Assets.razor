@@ -20,7 +20,7 @@
         <div class="card-body">
             <EditForm Model="@currentAsset" OnValidSubmit="@SaveAsset">
                 <DataAnnotationsValidator />
-                <ValidationSummary />
+              
 
                 <div class="form-group mb-3">
                     <label for="assetName">Asset Name:</label>
@@ -47,6 +47,49 @@
     </div>
 }
 
+
+@if (showDetails && selectedAsset is not null)
+{
+    <div class="card mb-3 border-info">
+        <div class="card-header bg-info text-white">
+            <h5>Asset Details (ID: @selectedAsset.AssetId)</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Asset Name:</strong> @selectedAsset.AssetName</p>
+            <p><strong>Asset Type:</strong> @selectedAsset.AssetType</p>
+            <p><strong>Serial Number:</strong> @selectedAsset.SerialNumber</p>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ClearDetails">Close</button>
+        </div>
+    </div>
+}
+
+@if (showConfirmDeleteModal && deleteTargetAsset is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this asset?</p>
+                    <ul>
+                        <li><strong>Name:</strong> @deleteTargetAsset.AssetName</li>
+                        <li><strong>Type:</strong> @deleteTargetAsset.AssetType</li>
+                        <li><strong>Serial:</strong> @deleteTargetAsset.SerialNumber</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
 @* Display the list of assets in a table *@
 
 @if (assets == null)
@@ -59,9 +102,10 @@
             <thead class="table-dark">
                 <tr>
                 <th>AssetId</th>
-                    <th>Asset Name</th>
-                    <th>Asset Type</th>
-                    <th>Serial Number</th>
+                    <th>ASSET NAME</th>
+                    <th>ASSET TYPE</th>
+                    <th>SERIAL NUMBER</th>
+                    <th>ACTION</th>
 
                 </tr>
             </thead>
@@ -74,9 +118,10 @@
                         <td>@asset.AssetType</td>
                         <td>@asset.SerialNumber</td>
                         <td>
-                            <button class="btn btn-sm btn-info me-1" @onclick="() => EditAsset(asset)">Edit</button>
-                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteAsset(asset.AssetId, asset.AssetName)">Delete</button>
-                        </td>
+                        <button class="btn btn-sm btn-info me-1" @onclick="() => EditAsset(asset)">Edit</button>
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetails(asset)">Details</button>
+                        <button class="btn btn-sm btn-danger me-1" @onclick="() => PromptDelete(asset)">Delete</button>
+                    </td>
                     </tr>
                 }
             </tbody>
@@ -86,10 +131,13 @@
 
 @code {
  // The DbContext instance for this component
-    private List<AssetMaster>? assets; // List to hold all assets
-    private AssetMaster currentAsset = new AssetMaster(); // The asset being added/edited
-    private bool showEditForm = false; // Controls visibility of the add/edit form
-
+    private List<AssetMaster>? assets; 
+    private AssetMaster currentAsset = new AssetMaster(); 
+    private bool showEditForm = false;
+    private bool showDetails = false;
+    private bool showConfirmDeleteModal = false;
+    private AssetMaster? selectedAsset;
+    private AssetMaster? deleteTargetAsset;
    
     protected override async Task OnInitializedAsync()
     {
@@ -197,31 +245,39 @@
         currentAsset = new AssetMaster(); // Reset the current asset
     }
 
-    // Deletes an asset from the database
-    private async Task DeleteAsset(int assetId, string assetName)
+    private void ShowDetails(AssetMaster asset)
     {
-        if (DbContext == null) return;
+        selectedAsset = asset;
+        showDetails = true;
+    }
 
-        // Use JavaScript confirm dialog for user confirmation
-        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete asset: {assetName} (ID: {assetId})?");
+    private void ClearDetails()
+    {
+        selectedAsset = null;
+        showDetails = false;
+    }
 
-        if (confirmed)
+    private void PromptDelete(AssetMaster asset)
+    {
+        deleteTargetAsset = asset;
+        showConfirmDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deleteTargetAsset = null;
+        showConfirmDeleteModal = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deleteTargetAsset != null)
         {
-            try
-            {
-                var assetToDelete = await DbContext.Assets.FindAsync(assetId);
-                if (assetToDelete != null)
-                {
-                    DbContext.Assets.Remove(assetToDelete);
-                    await DbContext.SaveChangesAsync();
-                    await LoadAssets(); // Reload the list of assets
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error deleting asset: {ex.Message}");
-                // Consider showing an alert to the user
-            }
+            DbContext.Assets.Remove(deleteTargetAsset);
+            await DbContext.SaveChangesAsync();
+            await LoadAssets();
         }
+
+        CloseDeleteModal();
     }
 }

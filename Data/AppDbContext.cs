@@ -21,23 +21,21 @@ namespace Management.Models
         public DbSet<SupplierMaster> Suppliers { get; set; }
         public DbSet<EmployeeAsset> EmployeeAssets { get; set; }
 
-        
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Configure relationships
-
             modelBuilder.Entity<EmployeeAsset>()
                 .HasOne(ea => ea.Employee)
                 .WithMany()
-                .HasForeignKey(ea => ea.AssetId)
-                .IsRequired(false);
+                .HasForeignKey(ea => ea.EmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<EmployeeAsset>()
                 .HasOne(ea => ea.Asset)
                 .WithMany()
                 .HasForeignKey(ea => ea.AssetId)
-                .IsRequired(false);
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

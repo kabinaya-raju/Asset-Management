@@ -8,15 +8,16 @@ namespace Management.Models
         [Key]
         public int SupplierId { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Supplier Name is required")]
         [StringLength(100)]
         public string SupplierName { get; set; }
 
+        [Required(ErrorMessage = "Phone is required")]
         [StringLength(50)]
         public string Phone { get; set; }
 
-        [Required]
-        public DateOnly PurchaseDate { get; set; }
+        [Required(ErrorMessage = "Purchase Date is required")]
+        public DateTime PurchaseDate { get; set; }
 
 
     }

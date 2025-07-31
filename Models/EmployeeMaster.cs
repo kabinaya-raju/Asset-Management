@@ -7,18 +7,18 @@ namespace Management.Models
         [Key]
         public int EmployeeId { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "First Name is required")]
         [StringLength(100)]
         public string? FirstName { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Last Name is required")]
         [StringLength(100)]
         public string LastName { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Gender is required")]
         public string Gender { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Position is required")]
         public string Position { get; set; }
 
        
