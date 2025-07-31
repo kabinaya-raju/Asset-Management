@@ -1,9 +1,9 @@
-﻿Suppliers.razor
-@page "/suppliers"
+﻿@page "/suppliers"
 @using Management.Models
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Forms
-@inject AppDbContext DbContext
+@inject IDbContextFactory<AppDbContext> DbFactory  
+@* <--- CHANGED HERE *@
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
@@ -34,7 +34,7 @@
 
                 <div class="form-group mb-3">
                     <label>Purchase Date:</label>
-                    <InputDate @bind-Value="currentSupplier.PurchaseDate" class="form-control" />
+                    <InputDate  @bind-Value="currentSupplier.PurchaseDate" class="form-control" />
                     <ValidationMessage For="@(() => currentSupplier.PurchaseDate)" />
                 </div>
 
@@ -123,7 +123,7 @@ else
 }
 
 @code {
-    private List<SupplierMaster> suppliers;
+    private List<SupplierMaster>? suppliers; // Changed to nullable List for safer initial state
     private SupplierMaster currentSupplier = new();
     private bool showEditForm = false;
 
@@ -139,7 +139,16 @@ else
 
     private async Task LoadSuppliers()
     {
-        suppliers = await DbContext.Suppliers.ToListAsync();
+        using var dbContext = DbFactory.CreateDbContext(); @* <--- CHANGED HERE *@
+        try
+        {
+            suppliers = await dbContext.Suppliers.ToListAsync(); @* <--- CHANGED HERE *@
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading suppliers: {ex.Message}");
+            suppliers = new List<SupplierMaster>(); // Initialize to empty list on error
+        }
     }
 
     private void AddNewSupplier()
@@ -149,7 +158,7 @@ else
             PurchaseDate = DateTime.Today
         };
         showEditForm = true;
-        StateHasChanged();
+        // StateHasChanged(); // Often not needed here, Blazor handles it after event
     }
 
     private void EditSupplier(SupplierMaster supplier)
@@ -163,32 +172,42 @@ else
         };
 
         showEditForm = true;
-        StateHasChanged();
+        // StateHasChanged(); // Often not needed here, Blazor handles it after event
     }
 
     private async Task SaveSupplier()
     {
-        if (currentSupplier.SupplierId == 0)
+        using var dbContext = DbFactory.CreateDbContext(); @* <--- CHANGED HERE *@
+        try
         {
-            DbContext.Suppliers.Add(currentSupplier);
-        }
-        else
-        {
-            var existingEntity = await DbContext.Suppliers.FindAsync(currentSupplier.SupplierId);
-            if (existingEntity != null)
+            if (currentSupplier.SupplierId == 0)
             {
-                DbContext.Entry(existingEntity).CurrentValues.SetValues(currentSupplier);
+                dbContext.Suppliers.Add(currentSupplier); @* <--- CHANGED HERE *@
             }
-        }
+            else
+            {
+                var existingEntity = await dbContext.Suppliers.FindAsync(currentSupplier.SupplierId); @* <--- CHANGED HERE *@
+                if (existingEntity != null)
+                {
+                    dbContext.Entry(existingEntity).CurrentValues.SetValues(currentSupplier); @* <--- CHANGED HERE *@
+                }
+            }
 
-        await DbContext.SaveChangesAsync();
-        showEditForm = false;
-        await LoadSuppliers();
+            await dbContext.SaveChangesAsync(); @* <--- CHANGED HERE *@
+            showEditForm = false;
+            await LoadSuppliers();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving supplier: {ex.Message}");
+            // Consider showing a user-friendly error message here
+        }
     }
 
     private void CancelEdit()
     {
         showEditForm = false;
+        currentSupplier = new SupplierMaster(); // Reset the current supplier model
     }
 
 
@@ -206,13 +225,21 @@ else
 
     private async Task ConfirmDelete()
     {
+        using var dbContext = DbFactory.CreateDbContext(); @* <--- CHANGED HERE *@
         if (deleteTargetSupplier != null)
         {
-            DbContext.Suppliers.Remove(deleteTargetSupplier);
-            await DbContext.SaveChangesAsync();
-            await LoadSuppliers();
+            try
+            {
+                dbContext.Suppliers.Remove(deleteTargetSupplier); @* <--- CHANGED HERE *@
+                await dbContext.SaveChangesAsync(); @* <--- CHANGED HERE *@
+                await LoadSuppliers();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting supplier: {ex.Message}");
+                // Optional: Provide user feedback
+            }
         }
-
         CloseDeleteModal();
     }
 
@@ -227,5 +254,4 @@ else
         selectedSupplier = null;
         showDetails = false;
     }
-
 }

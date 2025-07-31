@@ -2,9 +2,10 @@
 
 @using Management.Models
 @using Microsoft.EntityFrameworkCore
-@using Microsoft.AspNetCore.Components.Forms 
+@using Microsoft.AspNetCore.Components.Forms
 @inject NavigationManager Navigation
-@inject AppDbContext DbContext
+@inject IDbContextFactory<AppDbContext> DbFactory 
+@* CHANGED: Injected DbContextFactory *@
 @inject IJSRuntime JSRuntime
 
 
@@ -20,7 +21,6 @@
         <div class="card-body">
             <EditForm Model="@currentAsset" OnValidSubmit="@SaveAsset">
                 <DataAnnotationsValidator />
-              
 
                 <div class="form-group mb-3">
                     <label for="assetName">Asset Name:</label>
@@ -35,12 +35,12 @@
                 </div>
 
                 <div class="form-group mb-3">
-                    <label for="serialNumber">Serial Number:</label>
+                    <label for="serialNumber">SerialNumber:</label>
                     <InputText id="serialNumber" @bind-Value="currentAsset.SerialNumber" class="form-control" />
                     <ValidationMessage For="@(() => currentAsset.SerialNumber)" />
                 </div>
 
-                <button type="submit" class="btn btn-success me-2" >Save</button>
+                <button type="submit" class="btn btn-success me-2">Save</button>
                 <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
             </EditForm>
         </div>
@@ -93,52 +93,51 @@
 @* Display the list of assets in a table *@
 
 @if (assets == null)
- {
-        <p>Loading employees....</p>
-  }
-  else
-        {
-        <table class="table table-striped table-hover">
-            <thead class="table-dark">
-                <tr>
+{
+    <p>Loading assets....</p> @* Changed "employees" to "assets" for clarity *@
+}
+else
+{
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
                 <th>AssetId</th>
-                    <th>ASSET NAME</th>
-                    <th>ASSET TYPE</th>
-                    <th>SERIAL NUMBER</th>
-                    <th>ACTION</th>
-
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var asset in assets)
-                {
-                    <tr>
-                        <td>@asset.AssetId</td>
-                        <td>@asset.AssetName</td>
-                        <td>@asset.AssetType</td>
-                        <td>@asset.SerialNumber</td>
-                        <td>
+                <th>ASSET NAME</th>
+                <th>ASSET TYPE</th>
+                <th>SERIAL NUMBER</th>
+                <th>ACTION</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var asset in assets)
+            {
+                <tr>
+                    <td>@asset.AssetId</td>
+                    <td>@asset.AssetName</td>
+                    <td>@asset.AssetType</td>
+                    <td>@asset.SerialNumber</td>
+                    <td>
                         <button class="btn btn-sm btn-info me-1" @onclick="() => EditAsset(asset)">Edit</button>
                         <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetails(asset)">Details</button>
                         <button class="btn btn-sm btn-danger me-1" @onclick="() => PromptDelete(asset)">Delete</button>
                     </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-  }  
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 
 
 @code {
- // The DbContext instance for this component
-    private List<AssetMaster>? assets; 
-    private AssetMaster currentAsset = new AssetMaster(); 
+    // The DbContext instance for this component
+    private List<AssetMaster>? assets;
+    private AssetMaster currentAsset = new AssetMaster();
     private bool showEditForm = false;
     private bool showDetails = false;
     private bool showConfirmDeleteModal = false;
     private AssetMaster? selectedAsset;
     private AssetMaster? deleteTargetAsset;
-   
+
     protected override async Task OnInitializedAsync()
     {
         // Only load assets and check DB connectivity, no JS interop here
@@ -148,48 +147,48 @@
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Error during OnInitializedAsync in Assets.razor: {ex.Message}"); // Added logging
             // Optionally log to server-side logs if available
         }
     }
 
+    // Removed the DisposeAsync method. IDbContextFactory handles disposal via 'using'.
+    // public async ValueTask DisposeAsync()
+    // {
+    //     if (DbContext is not null) // This 'DbContext' variable is no longer injected directly
+    //     {
+    //         await DbContext.DisposeAsync();
+    //     }
+    //     // No call to base.DisposeAsync() needed, as ComponentBase doesn't implement it.
+    // }
+
     private async Task LoadAssets()
     {
+        using var dbContext = DbFactory.CreateDbContext(); // CHANGED: Get a fresh DbContext instance
         try
         {
-            assets = await DbContext.Assets.ToListAsync();
+            assets = await dbContext.Assets.ToListAsync(); // CHANGED: Use the new dbContext instance
         }
         catch (Exception ex)
         {
-            assets = new List<AssetMaster>();
+            Console.WriteLine($"Error loading assets: {ex.Message}");
+            assets = new List<AssetMaster>(); // Initialize to empty list on error
         }
     }
 
-    
-
-    // Implementation of IAsyncDisposable to ensure the DbContext is properly disposed
-    public async ValueTask DisposeAsync()
-    {
-        if (DbContext is not null)
-        {
-            await DbContext.DisposeAsync();
-        }
-        // No call to base.DisposeAsync() needed, as ComponentBase doesn't implement it.
-    }
-
-    // Loads all assets from the database
-    
 
     // Initiates adding a new asset
     private void AddNewAsset()
     {
-        try{
-        currentAsset = new AssetMaster(); // Create a new empty AssetMaster instance
-        showEditForm = true; // Show the form
-        StateHasChanged();
-        }
-    catch (Exception ex)
+        try
         {
-            // Optionally log to server-side logs if available
+            currentAsset = new AssetMaster(); // Create a new empty AssetMaster instance
+            showEditForm = true; // Show the form
+            // StateHasChanged(); // Often not strictly necessary as Blazor typically renders after an event
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in AddNewAsset: {ex.Message}"); // Added logging
         }
     }
 
@@ -212,29 +211,31 @@
     // Saves the current asset (either new or edited) to the database
     private async Task SaveAsset()
     {
+        using var dbContext = DbFactory.CreateDbContext(); // CHANGED: Get a fresh DbContext instance
         try
         {
             if (currentAsset.AssetId == 0) // New asset
             {
-                DbContext.Assets.Add(currentAsset);
+                dbContext.Assets.Add(currentAsset); // CHANGED: Use the new dbContext instance
             }
             else // Existing asset - update using tracked entity
             {
-                var existingAsset = await DbContext.Assets.FindAsync(currentAsset.AssetId);
+                var existingAsset = await dbContext.Assets.FindAsync(currentAsset.AssetId); // CHANGED: Use the new dbContext instance
                 if (existingAsset != null)
                 {
-                    DbContext.Entry(existingAsset).CurrentValues.SetValues(currentAsset);
+                    dbContext.Entry(existingAsset).CurrentValues.SetValues(currentAsset); // CHANGED: Use the new dbContext instance
                 }
             }
 
-            await DbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync(); // CHANGED: Use the new dbContext instance
             showEditForm = false;
-            currentAsset = new AssetMaster();
+            currentAsset = new AssetMaster(); // Reset after save
             await LoadAssets();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error saving asset: {ex}");
+            // You might want to display a user-friendly error message here
         }
     }
 
@@ -271,13 +272,21 @@
 
     private async Task ConfirmDelete()
     {
+        using var dbContext = DbFactory.CreateDbContext(); // CHANGED: Get a fresh DbContext instance
         if (deleteTargetAsset != null)
         {
-            DbContext.Assets.Remove(deleteTargetAsset);
-            await DbContext.SaveChangesAsync();
-            await LoadAssets();
+            try
+            {
+                dbContext.Assets.Remove(deleteTargetAsset); // CHANGED: Use the new dbContext instance
+                await dbContext.SaveChangesAsync(); // CHANGED: Use the new dbContext instance
+                await LoadAssets();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting asset: {ex.Message}");
+                // Optional: Provide user feedback
+            }
         }
-
         CloseDeleteModal();
     }
 }

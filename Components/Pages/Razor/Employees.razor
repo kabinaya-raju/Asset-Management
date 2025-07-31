@@ -4,7 +4,8 @@
 @using Management.Models
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Forms
-@inject AppDbContext DbContext
+@inject IDbContextFactory<AppDbContext> DbFactory  
+@* Corrected: Comment on a separate line or removed *@
 @inject IJSRuntime JSRuntime
 
 <button class="btn btn-primary mb-3" @onclick="AddNewEmployee">Add New Employee</button>
@@ -45,7 +46,7 @@
                 <option value="HR Manager">HR Manager</option>
                 <option value="Project Manager">Project Manager</option>
                 <option value="Marketing Manager">Marketing Manager</option>
-                <option value="DevOps  Architect">DevOps Architect</option>
+                <option value="DevOps Architect">DevOps Architect</option>
                 <option value="Solution Architect">Solution Architect</option>
                 <option value="Software Architect">Software Architect</option>
                 <option value="AI & ML Architect">AI & ML Architect</option>
@@ -60,9 +61,8 @@
         <button type="submit" class="btn btn-success me-2">Save</button>
         <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
     </EditForm>
+} @* This curly brace closes the @if (showEditForm) block *@
 
-        
- }
 
 @if (showDetails && selectedEmployee is not null)
 {
@@ -104,49 +104,45 @@
             </div>
         </div>
     </div>
+} @* This curly brace closes the @if (showConfirmDeleteModal ...) block *@
+
+
+@if (employees == null)
+{
+    <p>Loading employees....</p>
 }
-
- 
-        @if (employees == null)
-        {
-            <p>Loading employees....</p>
-        }
-        else
-        {
-
-        <table class="table">
-            <thead>
-                <tr>
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
                 <th>EMPLOYEE ID</th>
                 <th>FIRST NAME</th>
                 <th>LAST NAME</th>
                 <th>GENDER</th>
                 <th>POSITION</th>
                 <th>ACTION</th>
-                    
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var emp in employees)
-                {
-                    <tr>
-                        <td>@emp.EmployeeId</td>
-                        <td>@emp.FirstName</td>
-                        <td>@emp.LastName</td>
-                        <td>@emp.Gender</td>
-                        <td>@emp.Position</td>
-                        <td>
-                            <button class="btn btn-sm btn-info me-1" @onclick="() => EditEmployee(emp)">Edit</button>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var emp in employees)
+            {
+                <tr>
+                    <td>@emp.EmployeeId</td>
+                    <td>@emp.FirstName</td>
+                    <td>@emp.LastName</td>
+                    <td>@emp.Gender</td>
+                    <td>@emp.Position</td>
+                    <td>
+                        <button class="btn btn-sm btn-info me-1" @onclick="() => EditEmployee(emp)">Edit</button>
                         <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetails(emp)">Details</button>
                         <button class="btn btn-sm btn-danger me-1" @onclick="() => PromptDelete(emp)">Delete</button>
                     </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-  }
- 
-   
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 
 
 @code {
@@ -163,32 +159,29 @@
 
     protected override async Task OnInitializedAsync()
     {
-        
-            await LoadEmployees();
-       
+        await LoadEmployees();
     }
 
-   
-
-
-    public async ValueTask DisposeAsync()
-    {
-        if (DbContext is not null)
-        {
-            await DbContext.DisposeAsync();
-        }
-    }
+    // Removed the DisposeAsync method. IDbContextFactory handles disposal via 'using'.
+    // public async ValueTask DisposeAsync()
+    // {
+    //     if (DbContext is not null)
+    //     {
+    //         await DbContext.DisposeAsync();
+    //     }
+    // }
 
     private async Task LoadEmployees()
     {
+        using var dbContext = DbFactory.CreateDbContext();
         try
         {
-            employees = await DbContext.Employees.ToListAsync();
+            employees = await dbContext.Employees.ToListAsync();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading employees: {ex.Message}");
-            employees = new List<EmployeeMaster>();
+            employees = new List<EmployeeMaster>(); // Initialize to empty list on error
         }
     }
 
@@ -196,9 +189,9 @@
     {
         try
         {
-           
+            currentEmployee = new EmployeeMaster(); // Ensure a new empty instance for Add
             showEditForm = true;
-            StateHasChanged(); // Ensure UI refreshes
+            // StateHasChanged(); // Often not strictly necessary as Blazor typically renders after an event
             Console.WriteLine($"showEditForm set to: {showEditForm}");
             Console.WriteLine("AddNewEmployee method completed successfully");
         }
@@ -211,39 +204,54 @@
 
     private void EditEmployee(EmployeeMaster emp)
     {
-        currentEmployee = emp;
+        // Create a new instance to avoid modifying the list item directly until saved
+        currentEmployee = new EmployeeMaster
+        {
+            EmployeeId = emp.EmployeeId,
+            FirstName = emp.FirstName,
+            LastName = emp.LastName,
+            Gender = emp.Gender,
+            Position = emp.Position
+        };
         showEditForm = true;
     }
 
 
     private async Task SaveEmployee()
     {
-
+        using var dbContext = DbFactory.CreateDbContext();
         try
         {
             if (currentEmployee.EmployeeId == 0) // New employee
             {
-                DbContext.Employees.Add(currentEmployee); // <-- Changed from _dbContext.Employees
+                dbContext.Employees.Add(currentEmployee);
             }
             else // Existing employee
             {
-                DbContext.Employees.Update(currentEmployee); // <-- Changed from _dbContext.Employees
+                // Find the existing entity in the current context before updating
+                var existingEntity = await dbContext.Employees.FindAsync(currentEmployee.EmployeeId);
+                if (existingEntity != null)
+                {
+                    // Update its properties with the values from currentEmployee
+                    dbContext.Entry(existingEntity).CurrentValues.SetValues(currentEmployee);
+                }
             }
 
-            await DbContext.SaveChangesAsync(); // <-- Changed from _dbContext.SaveChangesAsync()
+            await dbContext.SaveChangesAsync();
             showEditForm = false;
             await LoadEmployees(); // Reload data
         }
         catch (Exception ex)
         {
-
             Console.WriteLine($"Full exception during employee save: {ex}"); // Log full exception for debugging
+            // You might want to display a user-friendly error message here
         }
     }
 
     private void CancelEdit()
     {
         showEditForm = false;
+        currentEmployee = new EmployeeMaster(); // Reset the model on cancel
     }
 
     private void ShowDetails(EmployeeMaster employee)
@@ -272,11 +280,20 @@
 
     private async Task ConfirmDelete()
     {
+        using var dbContext = DbFactory.CreateDbContext();
         if (deleteTargetEmployee != null)
         {
-            DbContext.Employees.Remove(deleteTargetEmployee);
-            await DbContext.SaveChangesAsync();
-            await LoadEmployees();
+            try
+            {
+                dbContext.Employees.Remove(deleteTargetEmployee);
+                await dbContext.SaveChangesAsync();
+                await LoadEmployees();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting employee: {ex.Message}");
+                // Optional: Provide user feedback
+            }
         }
         CloseDeleteModal();
     }
