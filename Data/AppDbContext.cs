@@ -21,7 +21,7 @@ namespace Management.Models
         public DbSet<SupplierMaster> Suppliers { get; set; }
         public DbSet<EmployeeAsset> EmployeeAssets { get; set; }
 
-
+            
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

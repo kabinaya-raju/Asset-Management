@@ -14,14 +14,9 @@ builder.Services.AddRazorComponents()
         options.DetailedErrors = true;
     });
 
-// ------------------------------------------------------------------
-// IMPORTANT CHANGE HERE:
-// We are changing AddDbContext to AddDbContextFactory
-// This ensures that each component can request a new, isolated DbContext instance
-// when it needs to perform a database operation, preventing concurrency issues.
+
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-// ------------------------------------------------------------------
 
 
 var app = builder.Build();

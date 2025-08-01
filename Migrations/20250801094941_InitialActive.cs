@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Management.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration : Migration
+    public partial class InitialActive : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,7 +16,7 @@ namespace Management.Migrations
                 columns: table => new
                 {
                     AssetId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "10001, 1"),
+                        .Annotation("SqlServer:Identity", "100001, 1"),
                     AssetName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     AssetType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     SerialNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true)
@@ -31,7 +31,7 @@ namespace Management.Migrations
                 columns: table => new
                 {
                     EmployeeId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "40001, 1"),
+                        .Annotation("SqlServer:Identity", "400001, 1"),
                     FirstName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     LastName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Gender = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -47,10 +47,11 @@ namespace Management.Migrations
                 columns: table => new
                 {
                     SupplierId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "70001, 1"),
+                        .Annotation("SqlServer:Identity", "700001, 1"),
                     SupplierName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Phone = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    IssueDate = table.Column<DateOnly>(type: "date", nullable: false)
+                    Phone = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PurchaseDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -62,12 +63,12 @@ namespace Management.Migrations
                 columns: table => new
                 {
                     EmpAssetId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "90001, 1"),
+                        .Annotation("SqlServer:Identity", "900001, 1"),
                     EmployeeId = table.Column<int>(type: "int", nullable: false),
                     AssetId = table.Column<int>(type: "int", nullable: false),
-                    AssetName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    AssetType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    IssueDate = table.Column<DateOnly>(type: "date", nullable: false)
+                    AssetName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    AssetType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    IssueDate = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -76,18 +77,25 @@ namespace Management.Migrations
                         name: "FK_EmployeeAssets_Assets_AssetId",
                         column: x => x.AssetId,
                         principalTable: "Assets",
-                        principalColumn: "AssetId");
+                        principalColumn: "AssetId",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_EmployeeAssets_Employees_AssetId",
-                        column: x => x.AssetId,
+                        name: "FK_EmployeeAssets_Employees_EmployeeId",
+                        column: x => x.EmployeeId,
                         principalTable: "Employees",
-                        principalColumn: "EmployeeId");
+                        principalColumn: "EmployeeId",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(
                 name: "IX_EmployeeAssets_AssetId",
                 table: "EmployeeAssets",
                 column: "AssetId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EmployeeAssets_EmployeeId",
+                table: "EmployeeAssets",
+                column: "EmployeeId");
         }
 
         /// <inheritdoc />

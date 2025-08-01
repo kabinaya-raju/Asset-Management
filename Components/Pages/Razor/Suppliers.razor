@@ -2,8 +2,7 @@
 @using Management.Models
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Forms
-@inject IDbContextFactory<AppDbContext> DbFactory  
-@* <--- CHANGED HERE *@
+@inject IDbContextFactory<AppDbContext> DbFactory
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
@@ -19,6 +18,7 @@
 
             <EditForm Model="@currentSupplier" OnValidSubmit="@SaveSupplier">
                 <DataAnnotationsValidator />
+               
 
                 <div class="form-group mb-3">
                     <label>Supplier Name:</label>
@@ -34,14 +34,15 @@
 
                 <div class="form-group mb-3">
                     <label>Purchase Date:</label>
-                    <InputDate  @bind-Value="currentSupplier.PurchaseDate" class="form-control" />
+                    <InputDate @bind-Value="currentSupplier.PurchaseDate" class="form-control" TValue="DateTime" />
                     <ValidationMessage For="@(() => currentSupplier.PurchaseDate)" />
                 </div>
+
+                
 
                 <button type="submit" class="btn btn-success me-2">Save</button>
                 <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
             </EditForm>
-
         </div>
     </div>
 }
@@ -61,46 +62,42 @@
     </div>
 }
 
-
-@if (showConfirmDeleteModal && deleteTargetSupplier is not null)
+@if (showConfirmStatusModal && supplierToUpdateStatus is not null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title">Confirm Delete</h5>
-                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                <div class="modal-header @(supplierToUpdateStatus.IsActive ? "bg-warning" : "bg-success") text-white">
+                    <h5 class="modal-title">@((supplierToUpdateStatus.IsActive ? "Deactivate" : "Activate")) Supplier</h5>
+                    <button type="button" class="btn-close" @onclick="CloseStatusModal"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Are you sure you want to delete the following supplier?</p>
+                    <p>Are you sure you want to @((supplierToUpdateStatus.IsActive ? "deactivate" : "activate")) the following supplier?</p>
                     <ul>
-                        <li><strong>Supplier Name:</strong> @deleteTargetSupplier.SupplierName</li>
-                        <li><strong>Phone:</strong> @deleteTargetSupplier.Phone</li>
+                        <li><strong>Supplier Name:</strong> @supplierToUpdateStatus.SupplierName</li>
+                        <li><strong>Phone:</strong> @supplierToUpdateStatus.Phone</li>
                     </ul>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
-                    <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                    <button class="btn btn-secondary" @onclick="CloseStatusModal">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmStatusUpdate">Yes, @(supplierToUpdateStatus.IsActive ? "Deactivate" : "Activate")</button>
                 </div>
             </div>
         </div>
     </div>
 }
 
-@if (suppliers == null)
-{
-    <p>Loading suppliers...</p>
-}
-else
+@if (suppliers != null && suppliers.Count > 0)
 {
     <table class="table table-striped table-hover">
         <thead class="table-dark">
             <tr>
-                <th>Supplier ID</th>
-                <th>Supplier Name</th>
-                <th>Phone</th>
-                <th>Purchase Date</th>
-                <th>Action</th>
+                <th>SUPPLIER ID</th>
+                <th>SUPPLIER NAME</th>
+                <th>PHONE</th>
+                <th>PURCHASE DATE</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
             </tr>
         </thead>
         <tbody>
@@ -112,9 +109,27 @@ else
                     <td>@supplier.Phone</td>
                     <td>@supplier.PurchaseDate.ToString("yyyy-MM-dd")</td>
                     <td>
-                        <button class="btn btn-sm btn-info me-1" @onclick="() => EditSupplier(supplier)">Edit</button>
-                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetails(supplier)">Details</button>
-                        <button class=" btn btn-sm btn-danger me-1" @onclick="() => PromptDelete(supplier)">Delete</button>
+                        @if (supplier.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Inactive</span>
+                        }
+                    </td>
+                    <td>
+                        <!-- Edit button -->
+                        <button class="btn btn-sm btn-info" @onclick="() => EditSupplier(supplier)">Edit</button>
+
+                        <!-- Show Details button -->
+                        <button class="btn btn-sm btn-primary" @onclick="() => ShowDetails(supplier)">Details</button>
+
+                        <!-- Toggle Active/Inactive button -->
+                        <button class="btn btn-sm @(supplier.IsActive ? "btn-info" : "btn-success")"
+                                @onclick="() => ToggleActive(supplier)">
+                            @(supplier.IsActive ? "Deactivate" : "Activate")
+                        </button>
                     </td>
                 </tr>
             }
@@ -122,15 +137,16 @@ else
     </table>
 }
 
+
 @code {
-    private List<SupplierMaster>? suppliers; // Changed to nullable List for safer initial state
+    private List<SupplierMaster>? suppliers;
     private SupplierMaster currentSupplier = new();
     private bool showEditForm = false;
 
-    private bool showConfirmDeleteModal = false;
     private bool showDetails = false;
+    private bool showConfirmStatusModal = false;
     private SupplierMaster? selectedSupplier;
-    private SupplierMaster? deleteTargetSupplier;
+    private SupplierMaster? supplierToUpdateStatus;
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,15 +155,15 @@ else
 
     private async Task LoadSuppliers()
     {
-        using var dbContext = DbFactory.CreateDbContext(); @* <--- CHANGED HERE *@
+        using var dbContext = DbFactory.CreateDbContext();
         try
         {
-            suppliers = await dbContext.Suppliers.ToListAsync(); @* <--- CHANGED HERE *@
+            suppliers = await dbContext.Suppliers.ToListAsync();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading suppliers: {ex.Message}");
-            suppliers = new List<SupplierMaster>(); // Initialize to empty list on error
+            suppliers = new List<SupplierMaster>();
         }
     }
 
@@ -156,9 +172,9 @@ else
         currentSupplier = new SupplierMaster
         {
             PurchaseDate = DateTime.Today
+             
         };
         showEditForm = true;
-        // StateHasChanged(); // Often not needed here, Blazor handles it after event
     }
 
     private void EditSupplier(SupplierMaster supplier)
@@ -168,79 +184,45 @@ else
             SupplierId = supplier.SupplierId,
             SupplierName = supplier.SupplierName,
             Phone = supplier.Phone,
-            PurchaseDate = supplier.PurchaseDate
+            PurchaseDate = supplier.PurchaseDate,
+            IsActive = supplier.IsActive
         };
-
         showEditForm = true;
-        // StateHasChanged(); // Often not needed here, Blazor handles it after event
     }
 
     private async Task SaveSupplier()
     {
-        using var dbContext = DbFactory.CreateDbContext(); @* <--- CHANGED HERE *@
+        using var dbContext = DbFactory.CreateDbContext();
         try
         {
             if (currentSupplier.SupplierId == 0)
             {
-                dbContext.Suppliers.Add(currentSupplier); @* <--- CHANGED HERE *@
+                dbContext.Suppliers.Add(currentSupplier);
+               
             }
             else
             {
-                var existingEntity = await dbContext.Suppliers.FindAsync(currentSupplier.SupplierId); @* <--- CHANGED HERE *@
+                var existingEntity = await dbContext.Suppliers.FindAsync(currentSupplier.SupplierId);
                 if (existingEntity != null)
                 {
-                    dbContext.Entry(existingEntity).CurrentValues.SetValues(currentSupplier); @* <--- CHANGED HERE *@
+                    dbContext.Entry(existingEntity).CurrentValues.SetValues(currentSupplier);
                 }
             }
 
-            await dbContext.SaveChangesAsync(); @* <--- CHANGED HERE *@
+            await dbContext.SaveChangesAsync();
             showEditForm = false;
             await LoadSuppliers();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error saving supplier: {ex.Message}");
-            // Consider showing a user-friendly error message here
         }
     }
 
     private void CancelEdit()
     {
         showEditForm = false;
-        currentSupplier = new SupplierMaster(); // Reset the current supplier model
-    }
-
-
-    private void PromptDelete(SupplierMaster supplier)
-    {
-        deleteTargetSupplier = supplier;
-        showConfirmDeleteModal = true;
-    }
-
-    private void CloseDeleteModal()
-    {
-        deleteTargetSupplier = null;
-        showConfirmDeleteModal = false;
-    }
-
-    private async Task ConfirmDelete()
-    {
-        using var dbContext = DbFactory.CreateDbContext(); @* <--- CHANGED HERE *@
-        if (deleteTargetSupplier != null)
-        {
-            try
-            {
-                dbContext.Suppliers.Remove(deleteTargetSupplier); @* <--- CHANGED HERE *@
-                await dbContext.SaveChangesAsync(); @* <--- CHANGED HERE *@
-                await LoadSuppliers();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error deleting supplier: {ex.Message}");
-                // Optional: Provide user feedback
-            }
-        }
-        CloseDeleteModal();
+        currentSupplier = new SupplierMaster();
     }
 
     private void ShowDetails(SupplierMaster supplier)
@@ -249,9 +231,62 @@ else
         showDetails = true;
     }
 
+    private async Task ToggleActive(SupplierMaster supplier)
+    {
+        using var dbContext = DbFactory.CreateDbContext();
+        var entity = await dbContext.Suppliers.FindAsync(supplier.SupplierId);
+        if (entity != null)
+        {
+            entity.IsActive = !entity.IsActive; // Toggle the IsActive flag
+            await dbContext.SaveChangesAsync(); // Save changes to the database
+        }
+
+        await LoadSuppliers(); // Reload the list to reflect changes
+    }
+
+    private void ShowStatusConfirmationModal(SupplierMaster supplier)
+    {
+        supplierToUpdateStatus = supplier;
+        showConfirmStatusModal = true;
+    }
+
+    private void CloseStatusModal()
+    {
+        supplierToUpdateStatus = null;
+        showConfirmStatusModal = false;
+    }
+
+
+    private async Task ConfirmStatusUpdate()
+    {
+        using var dbContext = DbFactory.CreateDbContext();
+        if (supplierToUpdateStatus != null)
+        {
+            try
+            {
+                // Toggle the IsActive flag
+                supplierToUpdateStatus.IsActive = !supplierToUpdateStatus.IsActive;
+
+                // Save the changes to the database
+                dbContext.Suppliers.Update(supplierToUpdateStatus);
+                await dbContext.SaveChangesAsync();
+
+                // Reload the suppliers list to reflect the changes
+                await LoadSuppliers();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating status: {ex.Message}");
+            }
+        }
+
+        CloseStatusModal();
+    }
+
     private void ClearDetails()
     {
         selectedSupplier = null;
         showDetails = false;
     }
+
 }

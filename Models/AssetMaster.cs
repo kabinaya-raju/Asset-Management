@@ -18,6 +18,9 @@ namespace Management.Models
         [StringLength(50)]
         public string SerialNumber { get; set; }
 
+        public int SupplierId { get; set; } 
+        public SupplierMaster Supplier { get; set; }
+
     }
 }
 

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Management.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250730091100_InitialChange")]
-    partial class InitialChange
+    [Migration("20250801094941_InitialActive")]
+    partial class InitialActive
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,40 @@ namespace Management.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("EmployeeAsset", b =>
+                {
+                    b.Property<int>("EmpAssetId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmpAssetId"));
+
+                    b.Property<int>("AssetId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AssetName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("AssetType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("IssueDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("EmpAssetId");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("EmployeeAssets");
+                });
 
             modelBuilder.Entity("Management.Models.AssetMaster", b =>
                 {
@@ -50,40 +84,6 @@ namespace Management.Migrations
                     b.HasKey("AssetId");
 
                     b.ToTable("Assets");
-                });
-
-            modelBuilder.Entity("Management.Models.EmployeeAsset", b =>
-                {
-                    b.Property<int>("EmpAssetId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmpAssetId"));
-
-                    b.Property<int>("AssetId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("AssetName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("AssetType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.Property<DateOnly>("IssueDate")
-                        .HasColumnType("date");
-
-                    b.HasKey("EmpAssetId");
-
-                    b.HasIndex("AssetId");
-
-                    b.ToTable("EmployeeAssets");
                 });
 
             modelBuilder.Entity("Management.Models.EmployeeMaster", b =>
@@ -125,9 +125,12 @@ namespace Management.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SupplierId"));
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Phone")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("PurchaseDate")
                         .HasColumnType("datetime2");
@@ -142,15 +145,19 @@ namespace Management.Migrations
                     b.ToTable("Suppliers");
                 });
 
-            modelBuilder.Entity("Management.Models.EmployeeAsset", b =>
+            modelBuilder.Entity("EmployeeAsset", b =>
                 {
                     b.HasOne("Management.Models.AssetMaster", "Asset")
                         .WithMany()
-                        .HasForeignKey("AssetId");
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("Management.Models.EmployeeMaster", "Employee")
                         .WithMany()
-                        .HasForeignKey("AssetId");
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Asset");
 
