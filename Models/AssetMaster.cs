@@ -7,19 +7,18 @@ namespace Management.Models
         [Key]
         public int AssetId { get; set; }
 
-        [Required]
-        [StringLength(100)]
+        
+        [Required(ErrorMessage = "Asset Name is required")]
         public string AssetName { get; set; }
 
-        [Required]
-        [StringLength(50)]
+        [Required(ErrorMessage = "Asset Type is required")]
         public string AssetType { get; set; }
 
-        [StringLength(50)]
+        [Required(ErrorMessage = "Serial Number is required")]
         public string SerialNumber { get; set; }
 
-        public int SupplierId { get; set; } 
-        public SupplierMaster Supplier { get; set; }
+        [Required(ErrorMessage = "SupplierId is required")]
+        public int SupplierId { get; set; }
 
     }
 }

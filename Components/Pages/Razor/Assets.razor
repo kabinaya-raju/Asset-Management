@@ -4,8 +4,8 @@
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Forms
 @inject NavigationManager Navigation
-@inject IDbContextFactory<AppDbContext> DbFactory 
-@* CHANGED: Injected DbContextFactory *@
+@inject IDbContextFactory<AppDbContext> DbFactory
+
 @inject IJSRuntime JSRuntime
 
 
@@ -22,17 +22,19 @@
             <EditForm Model="@currentAsset" OnValidSubmit="@SaveAsset">
                 <DataAnnotationsValidator />
 
-                <!-- Supplier Filter Section -->
-                 <div class="mb-3">
-                 <label for="supplierSelect">Select Supplier ID:</label>
-                 <select id="supplierSelect" class="form-control" @onchange="OnSupplierSelected">
-                 <option value="">Select a Supplier</option>
-                 @foreach (var supplier in suppliers)
-                 {
-                      <option value="@supplier.SupplierId">@supplier.SupplierId</option>
-                 }
-                 </select>
-                 </div>
+                <div class="mb-3">
+                    <label for="supplierSelect">Supplier:</label>
+                    <InputSelect id="supplierSelect" @bind-Value="currentAsset.SupplierId" class="form-control">
+                        <option value="0">Select a Supplier</option>
+                        @foreach (var supplier in suppliers)
+                        {
+                            <option value="@supplier.SupplierId">@supplier.SupplierId - @supplier.SupplierName</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => currentAsset.SupplierId)" />
+
+
+                </div>
 
                 <div class="form-group mb-3">
                     <label for="assetName">Asset Name:</label>
@@ -127,6 +129,7 @@ else
             {
                 <tr>
                     <td>@asset.AssetId</td>
+                    <td>@asset.SupplierId</td> @* Added SupplierId column for display *@
                     <td>@asset.AssetName</td>
                     <td>@asset.AssetType</td>
                     <td>@asset.SerialNumber</td>
@@ -156,18 +159,10 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        
-        try
-        {
-            await LoadSuppliers();
-            await LoadAssets();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error during OnInitializedAsync in Assets.razor: {ex.Message}"); // Added logging
-           
-        }
+        await LoadSuppliers();
+        await LoadAssets();
     }
+
     private async Task LoadSuppliers()
     {
         using var dbContext = DbFactory.CreateDbContext();
@@ -181,26 +176,11 @@ else
         }
     }
 
-    private int pageSize = 10;  // Number of records per page
-    private int currentPage = 1;  // Current page being viewed
-
     private async Task LoadAssets()
     {
         using var dbContext = DbFactory.CreateDbContext();
-        try
-        {
-                 assets = await dbContext.Assets
-                                     .Skip((currentPage - 1) * pageSize)  
-                                     .Take(pageSize) 
-                                     .ToListAsync(); 
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading assets: {ex.Message}");
-            assets = new List<AssetMaster>();
-        }
+        assets = await dbContext.Assets.ToListAsync(); // Make sure this matches your DbSet name
     }
-
 
 
 
@@ -208,8 +188,8 @@ else
     {
         try
         {
-            currentAsset = new AssetMaster(); 
-            showEditForm = true; 
+            currentAsset = new AssetMaster();
+            showEditForm = true;
 
         }
         catch (Exception ex)
@@ -226,47 +206,56 @@ else
             AssetId = asset.AssetId,
             AssetName = asset.AssetName,
             AssetType = asset.AssetType,
-            SerialNumber = asset.SerialNumber
+            SerialNumber = asset.SerialNumber,
+            SupplierId = asset.SupplierId
         };
-        showEditForm = true; // Show the form
+        showEditForm = true;
     }
-
 
     private async Task SaveAsset()
     {
-        using var dbContext = DbFactory.CreateDbContext(); 
+        using var dbContext = DbFactory.CreateDbContext();
         try
         {
-            if (currentAsset.AssetId == 0) 
+            if (currentAsset.AssetId == 0)
             {
-                dbContext.Assets.Add(currentAsset); 
+                dbContext.Assets.Add(currentAsset);
             }
-            else 
+            else
             {
-                var existingAsset = await dbContext.Assets.FindAsync(currentAsset.AssetId); 
+                var existingAsset = await dbContext.Assets.FindAsync(currentAsset.AssetId);
                 if (existingAsset != null)
                 {
-                    dbContext.Entry(existingAsset).CurrentValues.SetValues(currentAsset); 
+                    dbContext.Entry(existingAsset).CurrentValues.SetValues(currentAsset);
                 }
             }
 
-            await dbContext.SaveChangesAsync(); 
+            await dbContext.SaveChangesAsync();
             showEditForm = false;
-            currentAsset = new AssetMaster(); 
+            currentAsset = new AssetMaster();
             await LoadAssets();
+            StateHasChanged();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error saving asset: {ex}");
-
+            // --- MODIFIED CODE HERE ---
+            string errorMessage = $"Error saving asset: {ex.Message}";
+            if (ex.InnerException != null)
+            {
+                errorMessage += $"\nInner Exception: {ex.InnerException.Message}";
+                Console.WriteLine($"Inner Exception: {ex.InnerException.Message}"); // Also log to console
+            }
+            Console.WriteLine($"Full Error: {ex}"); // Log the full exception stack trace for deeper debugging
+            await JSRuntime.InvokeVoidAsync("alert", errorMessage);
+            // --- END MODIFIED CODE ---
         }
     }
 
 
     private void CancelEdit()
     {
-        showEditForm = false; 
-        currentAsset = new AssetMaster(); 
+        showEditForm = false;
+        currentAsset = new AssetMaster();
     }
 
     private void ShowDetails(AssetMaster asset)
@@ -295,86 +284,22 @@ else
 
     private async Task ConfirmDelete()
     {
-        using var dbContext = DbFactory.CreateDbContext(); 
+        using var dbContext = DbFactory.CreateDbContext();
         if (deleteTargetAsset != null)
         {
             try
             {
-                dbContext.Assets.Remove(deleteTargetAsset); 
-                await dbContext.SaveChangesAsync(); 
+                dbContext.Assets.Remove(deleteTargetAsset);
+                await dbContext.SaveChangesAsync();
                 await LoadAssets();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error deleting asset: {ex.Message}");
-             
+                await JSRuntime.InvokeVoidAsync("alert", $"Error deleting asset: {ex.Message}");
             }
         }
         CloseDeleteModal();
     }
-
-    private async Task OnSupplierSelected(ChangeEventArgs e)
-    {
-        selectedSupplierId = int.Parse(e.Value.ToString());
-
-        // Fetch the asset details related to the selected supplier
-        var asset = await GetAssetDetailsBySupplierId(selectedSupplierId);
-
-        if (asset != null)
-        {
-            // Populate the asset fields with data from the AssetMaster
-            currentAsset.AssetName = asset.AssetName;
-            currentAsset.AssetType = asset.AssetType;
-            currentAsset.SerialNumber = asset.SerialNumber;
-        }
-        else
-        {
-            // Reset the fields if no asset is found for the selected supplier
-            currentAsset.AssetName = string.Empty;
-            currentAsset.AssetType = string.Empty;
-            currentAsset.SerialNumber = string.Empty;
-        }
-
-        // Reload assets (if needed)
-        await LoadAssets();
-    }
-
-
-
-
-    private async Task<SupplierMaster?> GetSupplierDetailsById(int supplierId)
-    {
-        using var dbContext = DbFactory.CreateDbContext();
-        try
-        {
-            // Fetch the supplier details by SupplierId
-            return await dbContext.Suppliers
-                                  .Where(s => s.SupplierId == supplierId)
-                                  .FirstOrDefaultAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error fetching supplier details: {ex.Message}");
-            return null;
-        }
-    }
-
-    private async Task<AssetMaster?> GetAssetDetailsBySupplierId(int supplierId)
-    {
-        using var dbContext = DbFactory.CreateDbContext();
-        try
-        {
-            // Assume AssetMaster has a SupplierId foreign key relationship
-            return await dbContext.Assets
-                                  .Where(a => a.SupplierId == supplierId)  // Assuming there's a SupplierId in AssetMaster
-                                  .FirstOrDefaultAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error fetching asset details: {ex.Message}");
-            return null;
-        }
-    }
-
 
 }
