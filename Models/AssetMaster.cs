@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
+
 namespace Management.Models
 {
     public class AssetMaster
@@ -14,7 +15,7 @@ namespace Management.Models
         [Required(ErrorMessage = "Asset Type is required")]
         public string AssetType { get; set; }
 
-        [Required(ErrorMessage = "Serial Number is required")]
+
         public string SerialNumber { get; set; }
 
         [Required(ErrorMessage = "SupplierId is required")]

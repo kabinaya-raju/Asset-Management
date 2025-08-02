@@ -1,55 +1,61 @@
 ﻿@page "/employeeassets"
-
 @using Management.Models
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Forms
-@using Microsoft.JSInterop
-
-@* Removed: @implements IAsyncDisposable - DbContextFactory handles disposal *@
 @inject NavigationManager Navigation
 @inject IDbContextFactory<AppDbContext> DbFactory
 @inject IJSRuntime JSRuntime
 
-<button class="btn btn-primary mb-3" @onclick="AddNewEmployeeAsset">Add New EmployeeAsset</button>
+<button class="btn btn-primary mb-3" @onclick="AddNewAssignment">Add New Employee Asset</button>
 
 @if (showEditForm)
 {
     <div class="card mb-3">
         <div class="card-header">
-            <h5 class="card-title">@(currentEmployeeAsset.EmpAssetId == 0 ? "Assign New Asset" : $"Edit Assignment (ID: {currentEmployeeAsset.EmpAssetId})")</h5>
+            <h5 class="card-title">@(currentAssignment.AssignmentId == 0 ? "Add New Assignment" : $"Edit Assignment: {currentAssignment.AssignmentId}")</h5>
         </div>
         <div class="card-body">
-            <EditForm Model="@currentEmployeeAsset" OnValidSubmit="@SaveEmployeeAsset">
+            <EditForm Model="@currentAssignment" OnValidSubmit="@SaveAssignment">
                 <DataAnnotationsValidator />
-
-                <div class="form-group mb-3">
-                    <label>Employee Id:</label>
-                    <InputSelect @bind-Value="currentEmployeeAsset.EmployeeId" class="form-select">
-                        <option value="0">-- Select Employee Id --</option>
+ 
+                <div class="mb-3">
+                    <label for="employeeSelect">Employee Id & Name:</label>
+                    <InputSelect id="employeeSelect" @bind-Value="currentAssignment.EmployeeId" class="form-control">
+                        <option value="">Select an Employee</option>
                         @foreach (var emp in employees)
                         {
-                            <option value="@emp.EmployeeId">@emp.EmployeeId - @emp.FirstName @emp.LastName</option>
+                            <option value="@emp.EmployeeId">@emp.EmployeeId - @emp.FirstName</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="@(() => currentEmployeeAsset.EmployeeId)" />
+                    <ValidationMessage For="@(() => currentAssignment.EmployeeId)" />
                 </div>
 
-                <div class="form-group mb-3">
-                    <label>Asset:</label>
-                    <InputSelect @bind-Value="currentEmployeeAsset.AssetId" class="form-select">
-                        <option value="0">-- Select Asset Name --</option>
-                        @foreach (var ast in assets)
+                <div class="mb-3">
+                    <label for="assetSelect">Asset:</label>
+                    <InputSelect id="assetSelect" @bind-Value="currentAssignment.AssetId" class="form-control" @onchange="OnAssetSelected">
+                        <option value="">Select an Asset</option>
+                        @foreach (var asset in availableAssets)
                         {
-                            <option value="@ast.AssetId">@ast.AssetName (@ast.SerialNumber)</option>
+                            <option value="@asset.AssetId">@asset.AssetId - @asset.AssetName</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="@(() => currentEmployeeAsset.AssetId)" />
+                    <ValidationMessage For="@(() => currentAssignment.AssetId)" />
                 </div>
 
                 <div class="form-group mb-3">
-                    <label>Issue Date:</label>
-                    <InputDate @bind-Value="currentEmployeeAsset.IssueDate" class="form-control" />
-                    <ValidationMessage For="@(() => currentEmployeeAsset.IssueDate)" />
+                    <label>Model Name:</label>
+                    <input type="text" readonly class="form-control-plaintext" value="@selectedAssetModelName" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label>Asset Type:</label>
+                    <input type="text" readonly class="form-control-plaintext" value="@selectedAssetType" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="issueDate">Issue Date:</label>
+                    <InputDate id="issueDate" @bind-Value="currentAssignment.IssueDate" class="form-control" />
+                    <ValidationMessage For="@(() => currentAssignment.IssueDate)" />
                 </div>
 
                 <button type="submit" class="btn btn-success me-2">Save</button>
@@ -59,24 +65,24 @@
     </div>
 }
 
-@if (showDetails && selectedDetailsAsset is not null)
+@if (showDetails && selectedAssignment != null)
 {
     <div class="card mb-3 border-info">
         <div class="card-header bg-info text-white">
-            <h5>Employee Asset Details (ID: @selectedDetailsAsset.EmpAssetId)</h5>
+            <h5>Assignment Details (ID: @selectedAssignment.AssignmentId)</h5>
         </div>
         <div class="card-body">
-            <p><strong>Employee ID:</strong> @selectedDetailsAsset.Employee?.EmployeeId - @selectedDetailsAsset.Employee?.FirstName @selectedDetailsAsset.Employee?.LastName</p>
-            <p><strong>Asset:</strong> @selectedDetailsAsset.Asset?.AssetName (@selectedDetailsAsset.Asset?.SerialNumber)</p>
-            @* Removed AssetType from details, as it's typically part of Asset, not EmployeeAsset directly. If it's a denormalized field on EmployeeAsset, you can add it back. *@
-            <p><strong>Issue Date:</strong> @selectedDetailsAsset.IssueDate.ToShortDateString()</p>
+            <p><strong>Employee:</strong> @(selectedAssignment.Employee?.FirstName ?? "N/A") (ID: @selectedAssignment.EmployeeId)</p>
+            <p><strong>Model:</strong> @(selectedAssignment.Asset?.AssetName ?? "N/A")(ID: @selectedAssignment.AssetId)</p>
+            <p><strong>Asset Type:</strong> @(selectedAssignment.Asset?.AssetType ?? "N/A")</p>
+            <p><strong>Serial Number:</strong> @(selectedAssignment.Asset?.SerialNumber ?? "N/A")</p>
+            <p><strong>Issue Date:</strong> @selectedAssignment.IssueDate.ToShortDateString()</p>
             <button class="btn btn-sm btn-outline-secondary" @onclick="ClearDetails">Close</button>
         </div>
     </div>
 }
 
-
-@if (showConfirmDeleteModal && deleteTargetAsset != null)
+@if (showConfirmDeleteModal && deleteTargetAssignment != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
@@ -86,10 +92,12 @@
                     <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Are you sure you want to delete the asset assignment:</p>
+                    <p>Are you sure you want to delete this assignment?</p>
                     <ul>
-                        <li><strong>Employee ID:</strong> @deleteTargetAsset.Employee?.EmployeeId - @deleteTargetAsset.Employee?.FirstName @deleteTargetAsset.Employee?.LastName</li>
-                        <li><strong>Asset:</strong> @deleteTargetAsset.Asset?.AssetName (@deleteTargetAsset.Asset?.SerialNumber)</li>
+                        <li><strong>Assignment ID:</strong> @deleteTargetAssignment.AssignmentId</li>
+                        
+                        <li><strong>Asset:</strong> @(deleteTargetAssignment.Asset?.AssetName ?? "N/A")</li>
+                        <li><strong>Issue Date:</strong> @deleteTargetAssignment.IssueDate.ToShortDateString()</li>
                     </ul>
                 </div>
                 <div class="modal-footer">
@@ -101,35 +109,36 @@
     </div>
 }
 
-
-@if (employeeAssets == null)
+@if (assignments == null)
 {
-    <p>Loading employee assets...</p>
+    <p>Loading assignments....</p>
 }
 else
 {
     <table class="table table-striped table-hover">
         <thead class="table-dark">
             <tr>
-                <th>EMPASSET ID</th>
-                <th>EMPLOYEE NAME & ID</th> @* Changed to "EMPLOYEE" as we show name now *@
-                <th>MODEL NAME & SERIAL NUMBER</th>
+                <th>EMPLOYEE ASSET ID </th>
+                <th>EMPLOYEE NAME & ID</th>
+                <th>MODEL NAME & ASSET ID </th>
+                <th>ASSET TYPE</th>
                 <th>ISSUE DATE</th>
                 <th>ACTION</th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var empAsset in employeeAssets)
+            @foreach (var assignment in assignments)
             {
                 <tr>
-                    <td>@empAsset.EmpAssetId</td>
-                    <td>@empAsset.Employee?.EmployeeId - @empAsset.Employee?.FirstName @empAsset.Employee?.LastName</td>
-                    <td>@(empAsset.Asset != null ? $"{empAsset.Asset.AssetName} ({empAsset.Asset.SerialNumber})" : "N/A")</td>
-                    <td>@empAsset.IssueDate.ToShortDateString()</td>
+                    <td>@assignment.AssignmentId</td>
+                    <td>@(assignment.Employee?.FirstName ?? "N/A") (ID: @assignment.EmployeeId)</td>
+                    <td>@(assignment.Asset?.AssetName ?? "N/A")(ID: @assignment.AssetId)</td>
+                    <td>@(assignment.Asset?.AssetType ?? "N/A")</td>
+                    <td>@assignment.IssueDate.ToShortDateString()</td>
                     <td>
-                        <button class="btn btn-sm btn-info me-1" @onclick="() => EditEmployeeAsset(empAsset)">Edit</button>
-                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetails(empAsset)">Details</button>
-                        <button class="btn btn-sm btn-danger me-1" @onclick="() => PromptDelete(empAsset)">Delete</button>
+                        <button class="btn btn-sm btn-info me-1" @onclick="() => EditAssignment(assignment)">Edit</button>
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetails(assignment)">Details</button>
+                        <button class="btn btn-sm btn-danger me-1" @onclick="() => PromptDelete(assignment)">Delete</button>
                     </td>
                 </tr>
             }
@@ -138,190 +147,214 @@ else
 }
 
 @code {
-    private List<EmployeeAsset>? employeeAssets;
-    private List<EmployeeMaster> employees = new();
-    private List<AssetMaster> assets = new();
-
-    private EmployeeAsset currentEmployeeAsset = new();
-    private EmployeeAsset? selectedDetailsAsset;
+    private List<EmployeeAsset>? assignments;
+    private List<EmployeeMaster> employees = new List<EmployeeMaster>();
+    private List<AssetMaster> availableAssets = new List<AssetMaster>();
+    private EmployeeAsset currentAssignment = new EmployeeAsset { IssueDate = DateTime.Today };
+    private bool showEditForm = false;
     private bool showDetails = false;
     private bool showConfirmDeleteModal = false;
-    private EmployeeAsset? deleteTargetAsset;
-
-    private bool showEditForm = false;
+    private EmployeeAsset? selectedAssignment;
+    private EmployeeAsset? deleteTargetAssignment;
+    private string selectedAssetModelName = string.Empty;
+    private string selectedAssetType = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        using var dbContext = DbFactory.CreateDbContext(); // Use DbContextFactory
-        try
-        {
-            employees = await dbContext.Employees.ToListAsync();
-            assets = await dbContext.Assets.ToListAsync();
-            await LoadEmployeeAssets();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error during OnInitializedAsync in EmployeeAssets.razor: {ex.Message}");
-            employees = new List<EmployeeMaster>();
-            assets = new List<AssetMaster>();
-            employeeAssets = new List<EmployeeAsset>(); // Ensure lists are initialized
-        }
+        await LoadAssignments();
+        await LoadEmployees();
+        await LoadAvailableAssets();
     }
 
-    private async Task LoadEmployeeAssets()
+    private async Task LoadAssignments()
     {
-        using var dbContext = DbFactory.CreateDbContext(); // Use DbContextFactory
+        using var dbContext = DbFactory.CreateDbContext();
         try
         {
-            employeeAssets = await dbContext.EmployeeAssets
+            // Load assignments with related Employee and Asset
+            assignments = await dbContext.EmployeeAssets
                 .Include(ea => ea.Employee)
                 .Include(ea => ea.Asset)
                 .ToListAsync();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading employee assets: {ex.Message}");
-            employeeAssets = new List<EmployeeAsset>();
+            Console.WriteLine($"Error loading assignments: {ex.Message}");
+            assignments = new List<EmployeeAsset>();
         }
     }
 
-    private void AddNewEmployeeAsset()
+    private async Task LoadEmployees()
     {
-        currentEmployeeAsset = new EmployeeAsset
-        {
-            EmployeeId = 0, // Ensure default for dropdown
-            AssetId = 0,    // Ensure default for dropdown
-            IssueDate = DateTime.Today
-        };
-
-        showEditForm = true;
-    }
-
-    private void EditEmployeeAsset(EmployeeAsset empAsset)
-    {
-        currentEmployeeAsset = new EmployeeAsset
-        {
-            EmpAssetId = empAsset.EmpAssetId,
-            EmployeeId = empAsset.EmployeeId,
-            AssetId = empAsset.AssetId,
-            IssueDate = empAsset.IssueDate,
-            // AssetName and AssetType are navigation properties, not directly on EmployeeAsset for editing
-            // Remove these lines if they are not direct columns on EmployeeAsset table
-            // AssetName = empAsset.AssetName,
-            // AssetType = empAsset.AssetType
-        };
-        showEditForm = true;
-    }
-
-    private async Task SaveEmployeeAsset()
-    {
-        if (!showEditForm || currentEmployeeAsset is null)
-            return;
-
-        using var dbContext = DbFactory.CreateDbContext(); // Use DbContextFactory
+        using var dbContext = DbFactory.CreateDbContext();
         try
         {
-            // Removed direct setting of AssetName/AssetType from selected asset.
-            // These properties are usually obtained via the navigation property 'Asset'
-            // when retrieving data from the DB, not directly stored on EmployeeAsset.
-            // If your EmployeeAsset model *does* have these as denormalized fields,
-            // then you would need to re-add this logic.
+            employees = await dbContext.Employees.ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading employees: {ex.Message}");
+            employees = new List<EmployeeMaster>();
+        }
+    }
 
-            if (currentEmployeeAsset.EmpAssetId == 0)
+    private async Task LoadAvailableAssets()
+    {
+        using var dbContext = DbFactory.CreateDbContext();
+        try
+        {
+            availableAssets = await dbContext.Assets.ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading assets: {ex.Message}");
+            availableAssets = new List<AssetMaster>();
+        }
+    }
+
+    private void AddNewAssignment()
+    {
+        currentAssignment = new EmployeeAsset { IssueDate = DateTime.Today };
+        selectedAssetModelName = string.Empty;
+        selectedAssetType = string.Empty;
+        showEditForm = true;
+    }
+
+    private void EditAssignment(EmployeeAsset assignment)
+    {
+        currentAssignment = new EmployeeAsset
+        {
+            AssignmentId = assignment.AssignmentId,
+            EmployeeId = assignment.EmployeeId,
+            AssetId = assignment.AssetId,
+            IssueDate = assignment.IssueDate
+        };
+
+        // Set the selected asset details for display
+        var asset = availableAssets.FirstOrDefault(a => a.AssetId == assignment.AssetId);
+        if (asset != null)
+        {
+            selectedAssetModelName = asset.AssetName ?? string.Empty;
+            selectedAssetType = asset.AssetType;
+        }
+        else
+        {
+            selectedAssetModelName = string.Empty;
+            selectedAssetType = string.Empty;
+        }
+
+        showEditForm = true;
+    }
+
+    private async Task OnAssetSelected(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int assetId))
+        {
+            var asset = availableAssets.FirstOrDefault(a => a.AssetId == assetId);
+            if (asset != null)
             {
-                dbContext.EmployeeAssets.Add(currentEmployeeAsset);
+                selectedAssetModelName = asset.AssetName ?? string.Empty;
+                selectedAssetType = asset.AssetType;
             }
             else
             {
-                var existing = await dbContext.EmployeeAssets.FindAsync(currentEmployeeAsset.EmpAssetId);
-                if (existing != null)
+                selectedAssetModelName = string.Empty;
+                selectedAssetType = string.Empty;
+            }
+        }
+        else
+        {
+            selectedAssetModelName = string.Empty;
+            selectedAssetType = string.Empty;
+        }
+    }
+
+    private async Task SaveAssignment()
+    {
+        using var dbContext = DbFactory.CreateDbContext();
+        try
+        {
+            if (currentAssignment.EmployeeId <= 0 || currentAssignment.AssetId <= 0)
+            {
+                return;
+            }
+
+            if (currentAssignment.AssignmentId == 0)
+            {
+                dbContext.EmployeeAssets.Add(currentAssignment);
+            }
+            else
+            {
+                var existingAssignment = await dbContext.EmployeeAssets.FindAsync(currentAssignment.AssignmentId);
+                if (existingAssignment != null)
                 {
-                    // Update only the properties that belong to the EmployeeAsset table itself
-                    existing.EmployeeId = currentEmployeeAsset.EmployeeId;
-                    existing.AssetId = currentEmployeeAsset.AssetId;
-                    existing.IssueDate = currentEmployeeAsset.IssueDate;
-                    // If AssetName and AssetType are denormalized fields on EmployeeAsset, update them here:
-                    // existing.AssetName = currentEmployeeAsset.AssetName;
-                    // existing.AssetType = currentEmployeeAsset.AssetType;
+                    dbContext.Entry(existingAssignment).CurrentValues.SetValues(currentAssignment);
+                }
+                else
+                {
+                    return;
                 }
             }
 
             await dbContext.SaveChangesAsync();
-
             showEditForm = false;
-            currentEmployeeAsset = new EmployeeAsset();
-            await LoadEmployeeAssets();
+            currentAssignment = new EmployeeAsset { IssueDate = DateTime.Today };
+            await LoadAssignments();
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Save failed: " + ex.Message);
+            await JSRuntime.InvokeVoidAsync("alert", $"Error saving assignment: {ex.Message}");
         }
-    }
-
-    private void PromptDelete(EmployeeAsset asset)
-    {
-        deleteTargetAsset = asset;
-        showConfirmDeleteModal = true;
-    }
-
-    private void CloseDeleteModal()
-    {
-        deleteTargetAsset = null;
-        showConfirmDeleteModal = false;
     }
 
     private void CancelEdit()
     {
         showEditForm = false;
-        currentEmployeeAsset = new EmployeeAsset();
+        currentAssignment = new EmployeeAsset { IssueDate = DateTime.Today };
+        selectedAssetModelName = string.Empty;
+        selectedAssetType = string.Empty;
     }
 
-    private async Task ConfirmDelete()
+    private void ShowDetails(EmployeeAsset assignment)
     {
-        using var dbContext = DbFactory.CreateDbContext(); // Use DbContextFactory
-        if (deleteTargetAsset != null)
-        {
-            try
-            {
-                // Find the entity in the current context or attach it to remove
-                var entityToRemove = dbContext.EmployeeAssets.Local.FirstOrDefault(e => e.EmpAssetId == deleteTargetAsset.EmpAssetId);
-                if (entityToRemove == null)
-                {
-                    // If not found in local cache, attach it as Unchanged so Remove can track it
-                    dbContext.Entry(deleteTargetAsset).State = EntityState.Deleted;
-                }
-                else
-                {
-                    dbContext.EmployeeAssets.Remove(entityToRemove);
-                }
-
-                await dbContext.SaveChangesAsync();
-                await LoadEmployeeAssets();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error deleting employee asset: {ex.Message}");
-            }
-        }
-        CloseDeleteModal();
-    }
-
-    // Corrected method names
-    private void ShowDetails(EmployeeAsset empAsset)
-    {
-        selectedDetailsAsset = empAsset;
+        selectedAssignment = assignment;
         showDetails = true;
     }
 
     private void ClearDetails()
     {
-        selectedDetailsAsset = null;
+        selectedAssignment = null;
         showDetails = false;
     }
 
-    // Removed the redundant DisposeAsync as IDbContextFactory manages context lifetimes.
-    // public async ValueTask DisposeAsync()
-    // {
-    //     // No longer directly injecting DbContext, so no direct disposal needed here.
-    // }
+    private void PromptDelete(EmployeeAsset assignment)
+    {
+        deleteTargetAssignment = assignment;
+        showConfirmDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deleteTargetAssignment = null;
+        showConfirmDeleteModal = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        using var dbContext = DbFactory.CreateDbContext();
+        if (deleteTargetAssignment != null)
+        {
+            try
+            {
+                dbContext.EmployeeAssets.Remove(deleteTargetAssignment);
+                await dbContext.SaveChangesAsync();
+                await LoadAssignments();
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Error deleting assignment: {ex.Message}");
+            }
+        }
+        CloseDeleteModal();
+    }
 }

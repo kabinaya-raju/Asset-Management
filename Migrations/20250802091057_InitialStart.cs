@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Management.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialActive : Migration
+    public partial class InitialStart : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -17,9 +17,10 @@ namespace Management.Migrations
                 {
                     AssetId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "100001, 1"),
-                    AssetName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    AssetType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    SerialNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true)
+                    AssetName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AssetType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SerialNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SupplierId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -62,17 +63,15 @@ namespace Management.Migrations
                 name: "EmployeeAssets",
                 columns: table => new
                 {
-                    EmpAssetId = table.Column<int>(type: "int", nullable: false)
+                    AssignmentId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "900001, 1"),
                     EmployeeId = table.Column<int>(type: "int", nullable: false),
                     AssetId = table.Column<int>(type: "int", nullable: false),
-                    AssetName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    AssetType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     IssueDate = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_EmployeeAssets", x => x.EmpAssetId);
+                    table.PrimaryKey("PK_EmployeeAssets", x => x.AssignmentId);
                     table.ForeignKey(
                         name: "FK_EmployeeAssets_Assets_AssetId",
                         column: x => x.AssetId,

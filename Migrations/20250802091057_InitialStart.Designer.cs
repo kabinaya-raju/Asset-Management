@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Management.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250801094941_InitialActive")]
-    partial class InitialActive
+    [Migration("20250802091057_InitialStart")]
+    partial class InitialStart
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -27,22 +27,14 @@ namespace Management.Migrations
 
             modelBuilder.Entity("EmployeeAsset", b =>
                 {
-                    b.Property<int>("EmpAssetId")
+                    b.Property<int>("AssignmentId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmpAssetId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AssignmentId"));
 
                     b.Property<int>("AssetId")
                         .HasColumnType("int");
-
-                    b.Property<string>("AssetName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("AssetType")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
@@ -50,7 +42,7 @@ namespace Management.Migrations
                     b.Property<DateTime>("IssueDate")
                         .HasColumnType("datetime2");
 
-                    b.HasKey("EmpAssetId");
+                    b.HasKey("AssignmentId");
 
                     b.HasIndex("AssetId");
 
@@ -69,17 +61,18 @@ namespace Management.Migrations
 
                     b.Property<string>("AssetName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("AssetType")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SerialNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SupplierId")
+                        .HasColumnType("int");
 
                     b.HasKey("AssetId");
 

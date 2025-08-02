@@ -24,22 +24,14 @@ namespace Management.Migrations
 
             modelBuilder.Entity("EmployeeAsset", b =>
                 {
-                    b.Property<int>("EmpAssetId")
+                    b.Property<int>("AssignmentId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmpAssetId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AssignmentId"));
 
                     b.Property<int>("AssetId")
                         .HasColumnType("int");
-
-                    b.Property<string>("AssetName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("AssetType")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
@@ -47,7 +39,7 @@ namespace Management.Migrations
                     b.Property<DateTime>("IssueDate")
                         .HasColumnType("datetime2");
 
-                    b.HasKey("EmpAssetId");
+                    b.HasKey("AssignmentId");
 
                     b.HasIndex("AssetId");
 
